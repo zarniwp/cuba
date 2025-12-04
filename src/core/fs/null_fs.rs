@@ -32,12 +32,13 @@ impl Write for DevNull {
 }
 
 /// Defines a null filesystem.
-///
+/// 
 /// A struct representing a null fs that implements the FS trait.
 pub struct NullFS {
     connected: bool,
 }
 
+/// Methods of `NullFS`.
 impl NullFS {
     /// Creates a new `NullFS`.
     pub fn new() -> Self {
@@ -45,12 +46,14 @@ impl NullFS {
     }
 }
 
+/// Impl of `Default` for `NullFS`.
 impl Default for NullFS {
     fn default() -> Self {
         Self::new()
     }
 }
 
+/// Impl of `FS` for `NullFS`.
 impl FS for NullFS {
     fn connect(&mut self) -> Result<(), FSError> {
         // Set connection state to true.
