@@ -14,6 +14,8 @@ use super::data_processor::DataProcessor;
 
 use blake3;
 
+/// Defines a `HashingReader`.
+///
 /// A reader that computes a BLAKE3 hash of the data read.
 struct HashingReader<R: Read + Send> {
     inner: R,
@@ -21,8 +23,9 @@ struct HashingReader<R: Read + Send> {
     output: Arc<Mutex<[u8; 32]>>,
 }
 
+/// Methods of `HashingReader`.
 impl<R: Read + Send> HashingReader<R> {
-    /// Creates a new HashingReader.
+    /// Creates a new `HashingReader`.
     fn new(inner: R, output: Arc<Mutex<[u8; 32]>>) -> Self {
         Self {
             inner,
@@ -32,6 +35,7 @@ impl<R: Read + Send> HashingReader<R> {
     }
 }
 
+/// Impl of `Read` for `HashingReader`.
 impl<R: Read + Send> Read for HashingReader<R> {
     /// Reads data from the inner reader and updates the hash.
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
@@ -43,6 +47,7 @@ impl<R: Read + Send> Read for HashingReader<R> {
     }
 }
 
+/// Impl of `Drop` for `HashingReader`.
 impl<R: Read + Send> Drop for HashingReader<R> {
     fn drop(&mut self) {
         // Compute and write the final hash when dropped.

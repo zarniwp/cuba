@@ -5,13 +5,16 @@ use secrecy::zeroize::Zeroize;
 
 use super::keyring::{KeyringError, get_password};
 
+/// Defines a `PasswordCache`.
+///
 /// Caches passwords from the keyring.
 pub struct PasswordCache {
     cache: HashMap<String, SecretString>,
 }
 
+/// Methods of `PasswordCache`.
 impl PasswordCache {
-    /// Creates a new password cache.
+    /// Creates a new `PasswordCache`.
     pub fn new() -> Self {
         PasswordCache {
             cache: HashMap::new(),
@@ -40,7 +43,7 @@ impl PasswordCache {
     }
 }
 
-/// Impl Drop for PasswordCache.
+/// Impl `Drop` for `PasswordCache`.
 impl Drop for PasswordCache {
     fn drop(&mut self) {
         // Ensures zeroing even on panic.
@@ -48,7 +51,7 @@ impl Drop for PasswordCache {
     }
 }
 
-/// Impl Default for PasswordCache.
+/// Impl `Default` for `PasswordCache`.
 impl Default for PasswordCache {
     fn default() -> Self {
         Self::new()

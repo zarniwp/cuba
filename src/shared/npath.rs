@@ -14,7 +14,7 @@ static UNIX_ROOT: Lazy<Regex> = Lazy::new(|| Regex::new(r"^/").unwrap());
 static WINDOWS_DRIVE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z]:").unwrap());
 static URL_SCHEME: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9+\-.]*:/").unwrap());
 
-/// A NPath root struct.
+/// Define a `NPathRoot`.
 #[derive(Error, Debug)]
 pub enum NPathRoot {
     Unix,
@@ -23,8 +23,9 @@ pub enum NPathRoot {
     Invalid,
 }
 
-/// Returns the NPathRoot content.
+/// Impls for `NPathRoot`.
 impl NPathRoot {
+    /// Returns the `NPathRoot` content.
     pub fn content(&self) -> &str {
         match &self {
             NPathRoot::Unix => "",
@@ -35,22 +36,23 @@ impl NPathRoot {
     }
 }
 
-/// Impl display for NPathRoot.
+/// Impl `Display` for `NPathRoot`.
 impl fmt::Display for NPathRoot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.content())
     }
 }
 
-/// A NPath component struct.
+/// Defines a `NPathComponent`.
 #[derive(Error, Debug)]
 pub enum NPathComponent {
     Root(NPathRoot),
     Normal(String),
 }
 
-/// Returns the NPathComponent content.
+/// Impls for `NPathComponent`
 impl NPathComponent {
+    /// Returns the `NPathComponent` content.
     pub fn content(&self) -> &str {
         match &self {
             NPathComponent::Root(root) => root.content(),
@@ -59,7 +61,7 @@ impl NPathComponent {
     }
 }
 
-/// Impl display for NPathComponent.
+/// Impl `Display` for `NPathComponent`.
 impl fmt::Display for NPathComponent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.content())
@@ -95,6 +97,7 @@ pub enum File {}
 /// A dir path must target to a directory.
 pub enum Dir {}
 
+/// Defines a `NPathError`.
 #[derive(Error, Debug)]
 pub enum NPathError {
     #[error("Path is not absolut")]
@@ -107,10 +110,12 @@ pub enum NPathError {
     InvalidOperation,
 }
 
-/// A union of normalized paths. Can hold either a rel/abs path to a dir or a path to a file.
+/// Defines a `UNPath<K>`
+///
+/// A union of normalized paths. Can hold either a Rel/Abs `NPath<Dir>` or `NPath<File>`.
 ///
 /// With operations:
-/// UNPath<Rel> = UNPath<Abs> - NPath<Abs, Dir>
+/// `UNPath<Rel> = UNPath<Abs> - NPath<Abs, Dir>`
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", content = "path")]
 #[serde(bound(serialize = "NPath<K, File>: Serialize, NPath<K, Dir>: Serialize"))]
@@ -120,7 +125,7 @@ pub enum UNPath<K> {
     Dir(NPath<K, Dir>),
 }
 
-/// Implementation of Debug for UNPath<Abs>.
+/// Impl of `Debug` for an absolute `UNPath`.
 impl fmt::Debug for UNPath<Abs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -130,7 +135,7 @@ impl fmt::Debug for UNPath<Abs> {
     }
 }
 
-/// Implementation of Debug for UNPath<Rel>.
+/// Impl of `Debug` for a relative `UNPath`.
 impl fmt::Debug for UNPath<Rel> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -140,7 +145,7 @@ impl fmt::Debug for UNPath<Rel> {
     }
 }
 
-/// Implementation of Display for UNPath<Abs>.
+/// Impl of `Display` for an absolute `UNPath`.
 impl fmt::Display for UNPath<Abs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -150,7 +155,7 @@ impl fmt::Display for UNPath<Abs> {
     }
 }
 
-/// Implementation of Display for UNPath<Rel>.
+/// Impl of `Display` for a relative `UNPath`.
 impl fmt::Display for UNPath<Rel> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -160,7 +165,7 @@ impl fmt::Display for UNPath<Rel> {
     }
 }
 
-/// Implementation of FromStr for UNPath<Abs>.
+/// Impl of `FromStr` for an absolute `UNPath`.
 impl FromStr for UNPath<Abs> {
     type Err = String;
 
@@ -179,7 +184,7 @@ impl FromStr for UNPath<Abs> {
     }
 }
 
-/// Implementation of FromStr for UNPath<Rel>.
+/// Impl of `FromStr` for a relative `UNPath`.
 impl FromStr for UNPath<Rel> {
     type Err = String;
 
@@ -198,8 +203,9 @@ impl FromStr for UNPath<Rel> {
     }
 }
 
+/// Methods of `UNPath`
 impl<K> UNPath<K> {
-    /// Returns the UNPath as a path.
+    /// Returns the `UNPath` as a path.
     pub fn to_path(&self) -> &Path {
         match self {
             UNPath::File(file_path) => file_path.to_path(),
@@ -207,7 +213,7 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns true, if the UNPath ends with the relative file NPath.
+    /// Returns true, if the `UNPath` ends with the relative file `NPath`.
     pub fn ends_with_file(&self, rel_file_path: &NPath<Rel, File>) -> bool {
         match self {
             UNPath::File(file_path) => file_path.ends_with(rel_file_path),
@@ -215,7 +221,7 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns true, if the UNPath ends with the relative dir NPath.
+    /// Returns true, if the `UNPath` ends with the relative directory `NPath`.
     pub fn ends_with_dir(&self, rel_dir_path: &NPath<Rel, Dir>) -> bool {
         match self {
             UNPath::Dir(dir_path) => dir_path.ends_with(rel_dir_path),
@@ -223,7 +229,7 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns the file.
+    /// Returns `NPath<K, File>` if file; otherwise returns `FnOnce`.
     pub fn file_or_else<F: FnOnce() -> NPath<K, File>>(self, op: F) -> NPath<K, File> {
         match self {
             UNPath::File(file_path) => file_path,
@@ -231,7 +237,7 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns the dir.
+    /// Returns `NPath<K, Dir>` if directory; otherwise returns `FnOnce`.
     pub fn dir_or_else<F: FnOnce() -> NPath<K, Dir>>(self, op: F) -> NPath<K, Dir> {
         match self {
             UNPath::File(_file_path) => op(),
@@ -239,7 +245,7 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns true if the UNPath is a file path.
+    /// Returns true if the `UNPath` is a file path.
     pub fn is_file(&self) -> bool {
         match self {
             UNPath::File(_file_path) => true,
@@ -247,7 +253,7 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns true if the UNPath is a dir path.
+    /// Returns true if the `UNPath` is a directory path.
     pub fn is_dir(&self) -> bool {
         match self {
             UNPath::File(_file_path) => false,
@@ -255,7 +261,7 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns the UNPath as nfc string.
+    /// Returns the `UNPath` as nfc string.
     pub fn to_nfc(&self) -> String {
         match self {
             UNPath::File(file_path) => file_path.to_nfc(),
@@ -264,8 +270,9 @@ impl<K> UNPath<K> {
     }
 }
 
+/// Methods of an absolute `UNPath`.
 impl UNPath<Abs> {
-    /// Returns the absolut path as os path.
+    /// Returns the absolut path as os `PathBuf`.
     pub fn as_os_path(&self) -> PathBuf {
         match self {
             UNPath::File(abs_file_path) => abs_file_path.as_os_path(),
@@ -273,7 +280,7 @@ impl UNPath<Abs> {
         }
     }
 
-    /// UNPath<Rel> = UNPath<Abs> - NPath<Abs, Dir>
+    /// `UNPath<Rel> = UNPath<Abs> - NPath<Abs, Dir>`
     pub fn sub_abs_dir(&self, abs_dir_path: &NPath<Abs, Dir>) -> Result<UNPath<Rel>, NPathError> {
         match self {
             UNPath::File(self_abs_file_path) => {
@@ -289,7 +296,7 @@ impl UNPath<Abs> {
         }
     }
 
-    /// Returns the path components of the UNPath<Abs>.
+    /// Returns the path components of the absolute `UNPath`.
     pub fn components(&self) -> Box<dyn Iterator<Item = NPathComponent> + '_> {
         match self {
             UNPath::File(file_path) => Box::new(file_path.components()),
@@ -298,8 +305,9 @@ impl UNPath<Abs> {
     }
 }
 
+/// Methods of a relative `UNPath`.
 impl UNPath<Rel> {
-    /// Returns the path components of the UNPath<Rel>.
+    /// Returns the path components.
     pub fn components(&self) -> Box<dyn Iterator<Item = NPathComponent> + '_> {
         match self {
             UNPath::File(file_path) => Box::new(file_path.components()),
@@ -308,7 +316,7 @@ impl UNPath<Rel> {
     }
 }
 
-/// Implementation of From (clone) for file UNPath.
+/// Impl of `From` (clone) for a file `UNPath`.
 impl<K> From<&NPath<K, File>> for UNPath<K>
 where
     NPath<K, File>: Clone,
@@ -318,7 +326,7 @@ where
     }
 }
 
-/// Implementation of From (clone) for dir UNPath.
+/// Impl of `From` (clone) for a directory `UNPath`.
 impl<K> From<&NPath<K, Dir>> for UNPath<K>
 where
     NPath<K, Dir>: Clone,
@@ -328,21 +336,21 @@ where
     }
 }
 
-/// Implementation of From for file UNPath.
+/// Impl of `From` for a file `UNPath`.
 impl<K> From<NPath<K, File>> for UNPath<K> {
     fn from(path: NPath<K, File>) -> Self {
         UNPath::File(path)
     }
 }
 
-/// Implementation of From for dir UNPath.
+/// Impl of `From` for a directory `UNPath`.
 impl<K> From<NPath<K, Dir>> for UNPath<K> {
     fn from(path: NPath<K, Dir>) -> Self {
         UNPath::Dir(path)
     }
 }
 
-/// Implementation of Clone for UNPath.
+/// Impl of `Clone` for `UNPath`.
 impl<K> Clone for UNPath<K> {
     fn clone(&self) -> Self {
         match self {
@@ -352,7 +360,7 @@ impl<K> Clone for UNPath<K> {
     }
 }
 
-/// Implementation of PartialEq for UNPath.
+/// Impl of `PartialEq` for `UNPath`.
 impl<K1, K2> PartialEq<UNPath<K2>> for UNPath<K1> {
     fn eq(&self, other: &UNPath<K2>) -> bool {
         match (self, other) {
@@ -363,10 +371,10 @@ impl<K1, K2> PartialEq<UNPath<K2>> for UNPath<K1> {
     }
 }
 
-/// Implementation of Eq for UNPath.
+/// Impl of `Eq` for `UNPath`.
 impl<K> Eq for UNPath<K> {}
 
-/// Implementation of Hash for UNPath.
+/// Impl of `Hash` for `UNPath`.
 impl<K> Hash for UNPath<K> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
@@ -382,25 +390,27 @@ impl<K> Hash for UNPath<K> {
     }
 }
 
-/// NPath ensures a normalized pattern for paths.
+/// Defines a `NPath<K, T>`.
+///
+/// `NPath` ensures a normalized pattern for paths.
 /// Conventions:
 ///
 /// - separates its elements with '/'
 /// - no trailing `/`
 ///
 /// Operations:
-/// NPath<Abs, Dir> = NPath<Abs, Dir> + NPath<Rel, Dir>
-/// NPath<Abs, File> = NPath<Abs, Dir> + NPath<Rel, File>
-/// NPath<Abs, Dir> = NPath<Abs, Dir> - NPath<Rel, Dir>
-/// NPath<Abs, Dir> = NPath<Abs, File> - NPath<Rel, File>
-/// NPath<Rel, T> = NPath<Abs, T> - NPath<Abs, Dir>
+/// `NPath<Abs, Dir> = NPath<Abs, Dir> + NPath<Rel, Dir>`
+/// `NPath<Abs, File> = NPath<Abs, Dir> + NPath<Rel, File>`
+/// `NPath<Abs, Dir> = NPath<Abs, Dir> - NPath<Rel, Dir>`
+/// `NPath<Abs, Dir> = NPath<Abs, File> - NPath<Rel, File>`
+/// `NPath<Rel, T> = NPath<Abs, T> - NPath<Abs, Dir>`
 pub struct NPath<K, T> {
     path_raw: String,
     path_nfc: String, // Only use for comparsion and hashing.
     _marker: PhantomData<(K, T)>,
 }
 
-/// Constructor for an absolut NPath.
+/// Impl `TryFrom` for an absolute `NPath`.
 impl<T> TryFrom<&str> for NPath<Abs, T> {
     type Error = NPathError;
 
@@ -415,7 +425,7 @@ impl<T> TryFrom<&str> for NPath<Abs, T> {
     }
 }
 
-/// Constructor for an absolut NPath.
+/// Impl `TryFrom` for an absolute `NPath`.
 impl<T> TryFrom<String> for NPath<Abs, T> {
     type Error = NPathError;
 
@@ -430,7 +440,7 @@ impl<T> TryFrom<String> for NPath<Abs, T> {
     }
 }
 
-/// Constructor for a relative NPath.
+/// Impl `TryFrom` for a relative `NPath`.
 impl<T> TryFrom<&str> for NPath<Rel, T> {
     type Error = NPathError;
 
@@ -445,7 +455,7 @@ impl<T> TryFrom<&str> for NPath<Rel, T> {
     }
 }
 
-/// Constructor for a relative NPath.
+/// Impl `TryFrom` for a relative `NPath`.
 impl<T> TryFrom<String> for NPath<Rel, T> {
     type Error = NPathError;
 
@@ -460,23 +470,23 @@ impl<T> TryFrom<String> for NPath<Rel, T> {
     }
 }
 
-/// Implementation of Debug for NPath.
+/// Impl of `Debug` for `NPath`.
 impl<K, T> fmt::Debug for NPath<K, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_nfc())
     }
 }
 
-/// Implementation of Display for NPath.
+/// Impl of `Display` for `NPath`.
 impl<K, T> fmt::Display for NPath<K, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_nfc())
     }
 }
 
-/// Functions for NPath.
+/// Methods for `NPath`.
 impl<K, T> NPath<K, T> {
-    // Create a new NPath, only for internal use.
+    /// Create a new `NPath`, only for internal use.
     fn new(path_str: &str) -> Self {
         let path_raw = path_str.to_string();
         let path_nfc: String = path_str.nfc().collect(); // only for equality & hashing
@@ -487,34 +497,34 @@ impl<K, T> NPath<K, T> {
         }
     }
 
-    /// Returns true, if the NPath ends with the relative NPath.
+    /// Returns true, if the `NPath` ends with `rel_path`.
     pub fn ends_with(&self, rel_path: &NPath<Rel, T>) -> bool {
         self.path_raw.ends_with(&rel_path.path_raw)
     }
 
-    /// Clears the NPath.
+    /// Clears the `NPath`.
     pub fn clear(&mut self) {
         self.path_raw.clear();
         self.path_nfc.clear();
     }
 
-    /// Returns true if the NPath is empty.
+    /// Returns true if the `NPath` is empty.
     pub fn is_empty(&self) -> bool {
         self.path_raw.is_empty()
     }
 
-    /// Returns the NPath as path.
+    /// Returns the `NPath` as path.
     pub fn to_path(&self) -> &Path {
         Path::new(&self.path_raw)
     }
 
-    /// Returns the NPath as nfc string.
+    /// Returns the `NPath` as nfc string.
     pub fn to_nfc(&self) -> String {
         self.path_nfc.clone()
     }
 }
 
-/// Implementation of Clone for NPath.
+/// Impl of `Clone` for `NPath`.
 impl<K, T> Clone for NPath<K, T> {
     fn clone(&self) -> Self {
         NPath {
@@ -525,24 +535,24 @@ impl<K, T> Clone for NPath<K, T> {
     }
 }
 
-/// Implementation of Eq for NPath.
+/// Impl of `Eq` for `NPath`.
 impl<K, T> Eq for NPath<K, T> {}
 
-// Implementation of PartialEq for NPath.
+// Impl of `PartialEq` for `NPath`.
 impl<K1, T1, K2, T2> PartialEq<NPath<K2, T2>> for NPath<K1, T1> {
     fn eq(&self, other: &NPath<K2, T2>) -> bool {
         self.path_nfc == other.path_nfc
     }
 }
 
-/// Implementation of Hash for NPath.
+/// Impl of `Hash` for `NPath`.
 impl<K, T> Hash for NPath<K, T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.path_nfc.hash(state);
     }
 }
 
-/// Implementation of Serialize for NPath.
+/// Impl of `Serialize` for `NPath`.
 impl<K, T> Serialize for NPath<K, T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -553,7 +563,7 @@ impl<K, T> Serialize for NPath<K, T> {
     }
 }
 
-/// Implementation of Deserialize for NPath.
+/// Impl of `Deserialize` for `NPath`.
 impl<'de, K, T> Deserialize<'de> for NPath<K, T>
 where
     NPath<K, T>: TryFrom<String>,
@@ -568,13 +578,14 @@ where
     }
 }
 
-/// Implementation of Default for absolute NPath.
+/// Impl of `Default` for an absolute `NPath`.
 impl<T> Default for NPath<Abs, T> {
     fn default() -> Self {
         NPath::new("")
     }
 }
 
+/// Methods of an absolute `NPath`.
 impl<T> NPath<Abs, T> {
     /// Returns the absolut path as os path.
     pub fn as_os_path(&self) -> PathBuf {
@@ -582,7 +593,7 @@ impl<T> NPath<Abs, T> {
         PathBuf::from(os_string)
     }
 
-    /// Returns the path components of an abs path.
+    /// Returns the path components.
     pub fn components(&self) -> impl Iterator<Item = NPathComponent> + '_ {
         let path = self.path_raw.as_str();
 
@@ -612,7 +623,7 @@ impl<T> NPath<Abs, T> {
         )
     }
 
-    /// NPath<Abs, T> = NPath<Abs, T> + NPath<Abs, Dir>
+    /// `NPath<Abs, T> = NPath<Abs, T> + NPath<Abs, Dir>`
     pub fn sub_abs_dir(&self, abs_dir_path: &NPath<Abs, Dir>) -> Result<NPath<Rel, T>, NPathError> {
         match self.path_raw.strip_prefix(abs_dir_path.path_raw.as_str()) {
             Some(rel_path) => Ok(NPath::new(rel_path.trim_start_matches('/'))),
@@ -630,18 +641,19 @@ impl<T> NPath<Rel, T> {
     }
 }
 
+/// Methods of an absolute directory `NPath`.
 impl NPath<Abs, Dir> {
-    /// NPath<Abs, Dir> = NPath<Abs, Dir> + NPath<Rel, Dir>
+    /// `NPath<Abs, Dir> = NPath<Abs, Dir> + NPath<Rel, Dir>`
     pub fn add_rel_dir(&self, rel_dir_path: &NPath<Rel, Dir>) -> NPath<Abs, Dir> {
         NPath::new(&(self.path_raw.clone() + "/" + &rel_dir_path.path_raw))
     }
 
-    /// NPath<Abs, File> = NPath<Abs, Dir> + NPath<Rel, File>
+    /// `NPath<Abs, File> = NPath<Abs, Dir> + NPath<Rel, File>`
     pub fn add_rel_file(&self, rel_file_path: &NPath<Rel, File>) -> NPath<Abs, File> {
         NPath::new(&(self.path_raw.clone() + "/" + &rel_file_path.path_raw))
     }
 
-    /// NPath<Abs, Dir> = NPath<Abs, Dir> - NPath<Rel, Dir>
+    /// `NPath<Abs, Dir> = NPath<Abs, Dir> - NPath<Rel, Dir>`
     pub fn sub_rel_dir(
         &self,
         rel_dir_path: &NPath<Rel, Dir>,
@@ -652,7 +664,7 @@ impl NPath<Abs, Dir> {
         }
     }
 
-    /// Union of an absolute dir path and a relative path.
+    /// Union of an absolute directory `NPath` and a relative `UNPath`.
     pub fn union(&self, rel_path: &UNPath<Rel>) -> Result<UNPath<Abs>, NPathError> {
         let mut union_path = String::new();
 
@@ -723,8 +735,9 @@ impl NPath<Abs, Dir> {
     }
 }
 
+/// Methods of an absolute file `NPath`.
 impl NPath<Abs, File> {
-    /// NPath<Abs, File> = NPath<Abs, File> - NPath<Rel, File>
+    /// `NPath<Abs, File> = NPath<Abs, File> - NPath<Rel, File>`
     pub fn sub_rel_file(
         &self,
         rel_file_path: &NPath<Rel, File>,
@@ -736,7 +749,7 @@ impl NPath<Abs, File> {
     }
 }
 
-/// Implementation of Default for relative NPath.
+/// Impl of `Default` for a relative `NPath`.
 impl<T> Default for NPath<Rel, T> {
     fn default() -> Self {
         NPath::new("")
@@ -744,12 +757,12 @@ impl<T> Default for NPath<Rel, T> {
 }
 
 impl<K> NPath<K, File> {
-    /// Pushes an extension to the file NPath.
+    /// Pushes an extension to the file `NPath`.
     pub fn push_extension(&mut self, extension: &str) {
         *self = NPath::new(&(self.path_raw.clone() + "." + extension))
     }
 
-    /// Pops (removes) an extension from the file NPath.
+    /// Pops (removes) an extension from the file `NPath`.
     pub fn pop_extension(&mut self) -> bool {
         match self.extension() {
             Some(ext) => {
@@ -766,7 +779,7 @@ impl<K> NPath<K, File> {
         }
     }
 
-    /// Pops (removes) an extension from the file NPath if it is extension.
+    /// Pops (removes) an extension from the file `NPath` if it is extension.
     pub fn pop_extension_if(&mut self, extension: &str) -> bool {
         match self.extension() {
             Some(ext) => {
@@ -780,7 +793,7 @@ impl<K> NPath<K, File> {
         }
     }
 
-    /// Returns the extension of the file NPath.
+    /// Returns the extension of the file `NPath`.
     pub fn extension(&self) -> Option<&OsStr> {
         Path::new(&self.path_raw).extension()
     }

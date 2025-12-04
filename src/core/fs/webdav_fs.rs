@@ -542,10 +542,10 @@ impl FS for WebDAVFS {
 
                         let mut metadata = fs_node.metadata.clone();
 
-                        if !fs_node.abs_path.is_dir() {
-                            if let Ok(real_size) = self.get_file_size_with_range(abs_path) {
-                                metadata.size = real_size;
-                            }
+                        if !fs_node.abs_path.is_dir()
+                            && let Ok(real_size) = self.get_file_size_with_range(abs_path)
+                        {
+                            metadata.size = real_size;
                         }
 
                         Ok(metadata)

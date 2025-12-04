@@ -13,7 +13,7 @@ pub struct LocalFS {
 }
 
 impl LocalFS {
-    /// Creates a new instance of `LocalFS`.
+    /// Creates a new `LocalFS`.
     pub fn new() -> Self {
         LocalFS { connected: false }
     }

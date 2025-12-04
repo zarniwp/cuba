@@ -111,6 +111,7 @@ pub struct SaltPrependingReader<R: Read> {
 }
 
 impl<R: Read> SaltPrependingReader<R> {
+    /// Creates a new `SaltPrependingReader`.
     pub fn new(reader: R, salt: [u8; SALT_SIZE]) -> Self {
         Self {
             reader,
@@ -120,6 +121,7 @@ impl<R: Read> SaltPrependingReader<R> {
     }
 }
 
+/// Impl of `Read` for `SaltPrependingReader`.
 impl<R: Read> Read for SaltPrependingReader<R> {
     fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
         // First read the salt once, then allow subsequent reads of data.

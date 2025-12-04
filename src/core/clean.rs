@@ -13,6 +13,7 @@ use crate::shared::progress_message::ProgressMessage;
 use super::fs::fs_base::FSMount;
 use super::transferred_node::{Flags, MaskedFlags, Restore, TransferredNodes};
 
+/// Runs the clean process.
 pub fn run_clean(fs_mnt: FSMount, sender: Sender<Arc<dyn Message>>) {
     // Connect fs.
     if let Err(err) = fs_mnt.fs.write().unwrap().connect() {

@@ -2,6 +2,7 @@ use keyring::Entry;
 use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 
+/// Defines a `KeyringError`.
 #[derive(Debug, Error)]
 pub enum KeyringError {
     #[error("Entry creation error: {0}")]
@@ -17,6 +18,7 @@ pub enum KeyringError {
     GetPassword(String),
 }
 
+/// Helper to create a keyring entry
 fn keyring_entry(id: &str) -> Result<Entry, KeyringError> {
     Entry::new("cuba", id).map_err(|err| KeyringError::EntryCreation(err.to_string()))
 }

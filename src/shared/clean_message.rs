@@ -10,6 +10,7 @@ use thiserror::Error;
 use super::message::{Info, Message};
 use super::npath::{Rel, UNPath};
 
+/// Defines a `CleanError`.
 #[derive(Error, Debug)]
 pub enum CleanError {
     /// Can used by cli or gui to show that the removal of a file or directory was not successful.   
@@ -17,6 +18,7 @@ pub enum CleanError {
     RemoveFailed,
 }
 
+/// Defines a `CleanInfo`.
 #[derive(Display, Debug, PartialEq)]
 pub enum CleanInfo {
     /// Can used by cli or gui to show that a file or directory is indexed and no orphan.   
@@ -28,13 +30,14 @@ pub enum CleanInfo {
     Removed,
 }
 
+/// Impl of `Info` for `CleanInfo`.
 impl Info for CleanInfo {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-/// Defines an `CleanMessage`.
+/// Defines a `CleanMessage`.
 ///
 /// # Example
 /// ```
@@ -59,8 +62,9 @@ pub struct CleanMessage {
     info: Option<Arc<dyn Info + Send + Sync>>,
 }
 
+/// Methods of `CleanMessage`.
 impl CleanMessage {
-    /// Creates a new instance of `CleanMessage`.
+    /// Creates a new `CleanMessage`.
     pub fn new(
         rel_path: &UNPath<Rel>,
         error: Option<Arc<dyn Error + Send + Sync>>,
@@ -74,7 +78,7 @@ impl CleanMessage {
     }
 }
 
-/// Implementation of Message for CleanMessage.
+/// Impl of `Message` for `CleanMessage`.
 impl Message for CleanMessage {
     fn err(&self) -> Option<&(dyn Error + Send + Sync)> {
         self.error.as_deref()
@@ -89,7 +93,7 @@ impl Message for CleanMessage {
     }
 }
 
-/// Implementation of Display for CleanMessage.
+/// Impl of `Display` for `CleanMessage`.
 impl Display for CleanMessage {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         if let Some(err) = self.err() {

@@ -28,14 +28,15 @@ fn trace_error(err: &dyn std::error::Error) -> String {
     msg
 }
 
-/// The log file struct.
+/// Defines a `LogFile`
 struct LogFile {
     file: Mutex<std::fs::File>,
     log_levels: Vec<log::Level>,
 }
 
+/// Methods of `LogFile`.
 impl LogFile {
-    /// Creates a new log file.
+    /// Creates a new `LogFile`.
     pub fn new(file_name: &str, log_levels: Vec<log::Level>) -> Self {
         let file = std::fs::OpenOptions::new()
             .write(true)
@@ -66,13 +67,14 @@ impl LogFile {
     }
 }
 
-/// The level file log writer.
+/// Defines a `LevelFileLogWriter`.
 struct LevelFileLogWriter {
     log_files: Vec<LogFile>,
 }
 
+/// Defines methods of `LevelFileLogWriter`.
 impl LevelFileLogWriter {
-    /// Creates a new LevelFileLogWriter.
+    /// Creates a new `LevelFileLogWriter`.
     pub fn new() -> Self {
         LevelFileLogWriter {
             log_files: Vec::new(),
@@ -111,14 +113,17 @@ impl LogWriter for LevelFileLogWriter {
     }
 }
 
+/// Defines a `LogBuilder`.
+///
 /// Prepares a logger that logs messages to files based on their levels.
 pub struct LogBuilder {
     receiver: Arc<Receiver<Arc<dyn Message>>>,
     log_writer: LevelFileLogWriter,
 }
 
+/// Methods of `LogBuilder`.
 impl LogBuilder {
-    /// Creates a new LogBuilder instance.
+    /// Creates a new `LogBuilder` instance.
     pub fn new(receiver: Arc<Receiver<Arc<dyn Message>>>) -> Self {
         LogBuilder {
             receiver,
@@ -149,6 +154,8 @@ impl LogBuilder {
     }
 }
 
+/// Defines a `Log`.
+///
 /// A logger that logs messages to files based on their levels.
 pub struct Log {
     receiver: Arc<Receiver<Arc<dyn Message>>>,
@@ -157,6 +164,7 @@ pub struct Log {
     logger_handle: Option<LoggerHandle>,
 }
 
+/// Methods of `Log`.
 impl Log {
     /// Initializes a new Log instance.
     pub fn start(&mut self) {
@@ -172,11 +180,10 @@ impl Log {
                         if let Ok(message) = message {
                             if let Some(task_message) = message.as_ref().as_any().downcast_ref::<TaskMessage>() {
                                 if let Some(info) = task_message.info() {
-                                    if let Some(task_info) = info.as_any().downcast_ref::<TaskInfo>() {
-                                        if task_info == &TaskInfo::Transferred || task_info == &TaskInfo::Verified {
+                                    if let Some(task_info) = info.as_any().downcast_ref::<TaskInfo>()
+                                        && (task_info == &TaskInfo::Transferred || task_info == &TaskInfo::Verified) {
                                             log::info!("{:?} : {}", task_message.rel_path, task_info);
                                         }
-                                    }
                                 }
                                 else if let Some(err) = task_message.err() {
                                     log::error!("{:?} : {}", task_message.rel_path, trace_error(err));
@@ -184,31 +191,27 @@ impl Log {
                             }
                             else if let Some(clean_message) = message.as_ref().as_any().downcast_ref::<CleanMessage>() {
                                 if let Some(info) = clean_message.info() {
-                                    if let Some(clean_info) = info.as_any().downcast_ref::<CleanInfo>() {
-                                        if clean_info == &CleanInfo::Removed  {
+                                    if let Some(clean_info) = info.as_any().downcast_ref::<CleanInfo>()
+                                        && clean_info == &CleanInfo::Removed  {
                                             log::info!("{:?} : {}", clean_message.rel_path, info);
                                         }
-                                    }
                                 }
                                 else if let Some(err) = clean_message.err() {
                                     log::error!("{:?} : {}", clean_message.rel_path, trace_error(err));
                                 }
                             }
-                            else if let Some(info_message) = message.as_ref().as_any().downcast_ref::<InfoMessage>() {
-                                if let Some(info) = info_message.info() {
+                            else if let Some(info_message) = message.as_ref().as_any().downcast_ref::<InfoMessage>()
+                                && let Some(info) = info_message.info() {
                                     log::info!("{}", info);
                                 }
-                            }
-                            else if let Some(warn_message) = message.as_ref().as_any().downcast_ref::<WarnMessage>() {
-                                if let Some(info) = warn_message.info() {
+                            else if let Some(warn_message) = message.as_ref().as_any().downcast_ref::<WarnMessage>()
+                                && let Some(info) = warn_message.info() {
                                     log::warn!("{}", info);
                                 }
-                            }
-                            else if let Some(error_message) = message.as_ref().as_any().downcast_ref::<ErrorMessage>() {
-                                if let Some(err) = error_message.err() {
+                            else if let Some(error_message) = message.as_ref().as_any().downcast_ref::<ErrorMessage>()
+                                && let Some(err) = error_message.err() {
                                     log::error!("{}",  trace_error(err));
                                 }
-                            }
                         }
                     },
                     recv(shutdown_receiver) -> _ => {

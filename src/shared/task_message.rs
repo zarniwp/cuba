@@ -10,6 +10,7 @@ use thiserror::Error;
 use super::message::{Info, Message};
 use super::npath::{Rel, UNPath};
 
+/// Defines a `TaskError`.
 #[derive(Error, Debug)]
 pub enum TaskError {
     /// Can used by cli or gui to show that the transfer of a file or directory was not successful.   
@@ -29,6 +30,8 @@ pub enum TaskError {
     NoPasswordId,
 }
 
+/// Defines a `TaskInfo`.
+///
 /// A Task is a thread that transfers a file or directory. After finishing,
 /// the task looks for more work to do.
 /// For simplicity, the messages for files and directories are the same — even though
@@ -71,7 +74,7 @@ impl Info for TaskInfo {
     }
 }
 
-/// Defines an `TaskMessage`.
+/// Defines a `TaskMessage`.
 ///
 /// # Example
 /// ```
@@ -99,8 +102,9 @@ pub struct TaskMessage {
     info: Option<Arc<dyn Info + Send + Sync>>,
 }
 
+/// Methods of `TaskMessage`.
 impl TaskMessage {
-    /// Creates a new instance of `TaskMessage`.
+    /// Creates a new `TaskMessage`.
     pub fn new(
         thread_number: usize,
         rel_path: &UNPath<Rel>,
@@ -116,7 +120,7 @@ impl TaskMessage {
     }
 }
 
-/// Implementation of Message for TaskMessage.
+/// Impl of `Message` for `TaskMessage`.
 impl Message for TaskMessage {
     fn err(&self) -> Option<&(dyn Error + Send + Sync)> {
         self.error.as_deref()
@@ -131,7 +135,7 @@ impl Message for TaskMessage {
     }
 }
 
-/// Implementation of Display for TaskMessage.
+/// Impl of Display for `TaskMessage`.
 impl Display for TaskMessage {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         if let Some(err) = self.err() {

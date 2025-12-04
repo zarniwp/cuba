@@ -8,6 +8,7 @@ use super::fs_base::FSBlockSize;
 use super::fs_base::{FS, FSError, FSMount, FSWrite};
 use super::fs_node::{FSNode, FSNodeMetaData};
 
+/// Methods of `FSMount`.
 impl FSMount {
     /// Creates dev_null filesystem mount.
     pub fn dev_null() -> Self {
@@ -20,6 +21,7 @@ impl FSMount {
 
 struct DevNull;
 
+/// Impl of `Read` for `DevNull`.
 impl Write for DevNull {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         Ok(buf.len()) // Pretend we "wrote" everything.
@@ -29,13 +31,15 @@ impl Write for DevNull {
     }
 }
 
+/// Defines a null filesystem.
+///
 /// A struct representing a null fs that implements the FS trait.
 pub struct NullFS {
     connected: bool,
 }
 
 impl NullFS {
-    /// Creates a new instance of `NullFS`.
+    /// Creates a new `NullFS`.
     pub fn new() -> Self {
         NullFS { connected: false }
     }

@@ -7,7 +7,6 @@ use std::sync::RwLock;
 
 use crate::core::cuba_json::read_cuba_json;
 use crate::core::cuba_json::write_cuba_json;
-use crate::core::transferred_node::TransferredNodes;
 use crate::send_error;
 use crate::send_warns;
 use crate::shared::message::Message;
@@ -30,6 +29,7 @@ use super::util::create_matcher;
 use super::util::move_rel_npaths;
 
 #[allow(clippy::too_many_arguments)]
+/// Runs the backup process.
 pub fn run_backup(
     threads: usize,
     compression: bool,
@@ -72,10 +72,7 @@ pub fn run_backup(
     }
 
     // Read cuba json.
-    let mut transferred_nodes = match read_cuba_json(&fs_conn.dest_mnt, &sender) {
-        Some(nodes) => nodes,
-        None => TransferredNodes::new(),
-    };
+    let mut transferred_nodes = read_cuba_json(&fs_conn.dest_mnt, &sender).unwrap_or_default();
 
     // Collect source directories and files.
     let mut src_rel_files: VecDeque<NPath<Rel, File>> = VecDeque::new();

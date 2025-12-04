@@ -24,7 +24,7 @@ use super::super::fs::fs_base::FSMount;
 use super::super::process_data::data_processor::DataProcessor;
 use super::super::process_data::signature_proc::signature_proc;
 
-// Exit task.
+/// Exit task.
 pub fn exit_task_and_continue(
     create_task_info_msg: &dyn Fn(Arc<dyn Info + Send + Sync>) -> Arc<TaskMessage>,
     sender: &Sender<Arc<dyn Message>>,
@@ -45,7 +45,7 @@ pub fn exit_task_and_continue(
     true
 }
 
-// A function that checks if the task transfer was successful.
+/// A function that checks if the task transfer was successful.
 pub fn task_transfer_successful(
     dest_mnt: &FSMount,
     dest_rel_file_path: &NPath<Rel, File>,

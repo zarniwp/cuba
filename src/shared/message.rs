@@ -8,7 +8,7 @@ use std::{
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 
-/// Defines an interface for an `Info`.
+/// Defines a trait for an `Info`.
 pub trait Info: fmt::Debug + fmt::Display + Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
@@ -26,6 +26,7 @@ pub struct StringInfo {
     message: String,
 }
 
+/// Methods of `StringInfo`.
 impl StringInfo {
     /// Creates a new instance of `StringInfo`.    
     pub fn new(message: String) -> Self {
@@ -33,21 +34,21 @@ impl StringInfo {
     }
 }
 
-/// Implementation of Info for StringInfo.
+/// Impl of `Info` for `StringInfo`.
 impl Info for StringInfo {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-/// Implementation of Display for StringInfo.
+/// Impl of `Display` for `StringInfo`.
 impl Display for StringInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.message)
     }
 }
 
-/// Defines an interface for a `Message`.
+/// Defines a trait for a `Message`.
 pub trait Message: fmt::Display + Send + Sync {
     fn err(&self) -> Option<&(dyn Error + Send + Sync)>;
     fn info(&self) -> Option<&(dyn Info + Send + Sync)>;
@@ -68,6 +69,7 @@ pub struct InfoMessage {
     info: Arc<dyn Info + Send + Sync>,
 }
 
+/// Methods of `InfoMessage`.
 impl InfoMessage {
     /// Creates a new instance of `InfoMessage`.
     #[allow(dead_code)]
@@ -76,7 +78,7 @@ impl InfoMessage {
     }
 }
 
-/// Implementation of Message for InfoMessage.
+/// Impl of `Message` for `InfoMessage`.
 impl Message for InfoMessage {
     fn err(&self) -> Option<&(dyn Error + Send + Sync)> {
         None
@@ -91,7 +93,7 @@ impl Message for InfoMessage {
     }
 }
 
-/// Implementation of Display for InfoMessage.
+/// Impl of `Display` for `InfoMessage`.
 impl Display for InfoMessage {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         write!(formatter, "Info : {}", self.info)
@@ -112,6 +114,7 @@ pub struct WarnMessage {
     warning: Arc<dyn Info + Send + Sync>,
 }
 
+/// Methods of `WarnMessage`.
 impl WarnMessage {
     /// Creates a new instance of `WarnMessage`.
     #[allow(dead_code)]
@@ -120,7 +123,7 @@ impl WarnMessage {
     }
 }
 
-/// Implementation of Message for WarnMessage.
+/// Impl of `Message` for `WarnMessage`.
 impl Message for WarnMessage {
     fn err(&self) -> Option<&(dyn Error + Send + Sync)> {
         None
@@ -135,7 +138,7 @@ impl Message for WarnMessage {
     }
 }
 
-/// Implementation of Display for WarnMessage.
+/// Impl of `Display` for `WarnMessage`.
 impl Display for WarnMessage {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         write!(formatter, "Warning : {}", self.warning)
@@ -155,6 +158,7 @@ pub struct StringError {
     message: String,
 }
 
+/// Methods of `StringError`.
 impl StringError {
     /// Creates a new instance of `StringError`.
     pub fn new(message: String) -> Self {
@@ -162,10 +166,10 @@ impl StringError {
     }
 }
 
-/// Implementation of Error for StringError.
+/// Impl of `Error` for `StringError`.
 impl Error for StringError {}
 
-/// Implementation of Display for StringError.
+/// Impl of `Display` for `StringError`.
 impl fmt::Display for StringError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.message)
@@ -190,6 +194,7 @@ pub struct ErrorMessage {
     error: Arc<dyn Error + Send + Sync>,
 }
 
+/// Defines methods of `ErrorMessage`.
 impl ErrorMessage {
     /// Creates a new instance of `ErrorMessage`.
     pub fn new(error: Arc<dyn Error + Send + Sync>) -> Self {
@@ -197,7 +202,7 @@ impl ErrorMessage {
     }
 }
 
-/// Implementation of Message for ErrorMessage.
+/// Impl of `Message` for `ErrorMessage`.
 impl Message for ErrorMessage {
     fn err(&self) -> Option<&(dyn Error + Send + Sync)> {
         Some(&*self.error)
@@ -212,7 +217,7 @@ impl Message for ErrorMessage {
     }
 }
 
-/// Implementation of Display for ErrorMessage.
+/// Impl of `Display` for `ErrorMessage`.
 impl Display for ErrorMessage {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         write!(formatter, "Error : {}", self.error)
@@ -264,7 +269,9 @@ macro_rules! send_error {
     }};
 }
 
-/// A `MsgDispatcher` sends messages from a source to all subscribers.
+/// Defines a `MsgDispatcher`.
+///
+/// Sends messages from a source to all subscribers.
 pub struct MsgDispatcher<T: Send + Sync + Clone + 'static> {
     source: Arc<Receiver<T>>,
     receivers: Arc<Mutex<Vec<Sender<T>>>>,
@@ -272,6 +279,7 @@ pub struct MsgDispatcher<T: Send + Sync + Clone + 'static> {
     thread_handle: Option<JoinHandle<()>>,
 }
 
+/// Methods of `MsgDispatcher`.
 impl<T: Send + Sync + Clone + 'static> MsgDispatcher<T> {
     /// Creates a `MsgDispatcher`. Receives messages from source and sends them to the
     /// subscribed receivers.
@@ -291,7 +299,7 @@ impl<T: Send + Sync + Clone + 'static> MsgDispatcher<T> {
         receiver
     }
 
-    /// Starts the message dispatcher.
+    /// Starts the `MsgDispatcher`.
     pub fn start(&mut self) {
         let source = Arc::clone(&self.source);
 
@@ -308,7 +316,7 @@ impl<T: Send + Sync + Clone + 'static> MsgDispatcher<T> {
                                 let mut lock = receivers.lock().unwrap();
                                 lock.retain(|s| s.send(value.clone()).is_ok());
                             }
-                            Err(_) => break, // source closed
+                            Err(_) => break, // source closed.
                         }
                     }
                     recv(shutdown_receiver) -> _ => break,
@@ -317,14 +325,14 @@ impl<T: Send + Sync + Clone + 'static> MsgDispatcher<T> {
         }));
     }
 
-    /// Stops the message dispatcher.
+    /// Stops the `MsgDispatcher`.
     pub fn stop(&mut self) {
         if let Some(sender) = self.shutdown_sender.take() {
-            let _ = sender.send(()); // signal shutdown
+            let _ = sender.send(()); // signal shutdown.
         }
 
         if let Some(handle) = self.thread_handle.take() {
-            let _ = handle.join(); // Wait for thread to finish
+            let _ = handle.join(); // Wait for thread to finish.
         }
     }
 }

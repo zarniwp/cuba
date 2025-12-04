@@ -8,6 +8,8 @@ use crate::shared::clean_message::CleanMessage;
 use crate::shared::message::{ErrorMessage, InfoMessage, Message, WarnMessage};
 use crate::shared::task_message::{TaskInfo, TaskMessage};
 
+/// Defines a `ConsoleOut`.
+///
 /// Prints messages to the console.
 pub struct ConsoleOut {
     receiver: Arc<Receiver<Arc<dyn Message>>>,
@@ -15,8 +17,9 @@ pub struct ConsoleOut {
     thread_handle: Option<JoinHandle<()>>,
 }
 
+/// Methods of `ConsoleOut`.
 impl ConsoleOut {
-    /// Creates a new console. Takes a message receiver.
+    /// Creates a new of `ConsoleOut`. Takes a message receiver.
     pub fn new(receiver: Arc<Receiver<Arc<dyn Message>>>) -> Self {
         Self {
             receiver,
@@ -63,21 +66,18 @@ impl ConsoleOut {
                                         println!("{:?} : {}", clean_message.rel_path, red.apply_to(err));
                                     }
                                 }
-                                else if let Some(info_message) = message.as_ref().as_any().downcast_ref::<InfoMessage>() {
-                                    if let Some(info) = info_message.info() {
+                                else if let Some(info_message) = message.as_ref().as_any().downcast_ref::<InfoMessage>()
+                                    && let Some(info) = info_message.info() {
                                         println!("{}", green.apply_to(info));
                                     }
-                                }
-                                else if let Some(warn_message) = message.as_ref().as_any().downcast_ref::<WarnMessage>() {
-                                    if let Some(info) = warn_message.info() {
+                                else if let Some(warn_message) = message.as_ref().as_any().downcast_ref::<WarnMessage>()
+                                    && let Some(info) = warn_message.info() {
                                         println!("{}", yellow.apply_to(info));
                                     }
-                                }
-                                else if let Some(error_message) = message.as_ref().as_any().downcast_ref::<ErrorMessage>() {
-                                    if let Some(err) = error_message.err() {
+                                else if let Some(error_message) = message.as_ref().as_any().downcast_ref::<ErrorMessage>()
+                                    && let Some(err) = error_message.err() {
                                         println!("{}", red.apply_to(err));
                                     }
-                                }
                             }
                             Err(_) => break, // All senders dropped.
                         }

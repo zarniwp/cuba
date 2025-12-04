@@ -27,14 +27,17 @@ trait_set! {
     + 'static
 }
 
+/// Defines the `TaskWorker`.
+///
 /// A struct representing the task worker.
 pub struct TaskWorker {
     fs_conn: FSConnection,
     sender: Sender<Arc<dyn Message>>,
 }
 
+/// Methods of `TaskWorker`.
 impl TaskWorker {
-    /// Creates a new task worker instance.
+    /// Creates a new instance of `TaskWorker`.
     pub fn new(fs_conn: FSConnection, sender: Sender<Arc<dyn Message>>) -> Self {
         Self { fs_conn, sender }
     }

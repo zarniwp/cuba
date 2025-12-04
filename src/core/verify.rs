@@ -24,6 +24,7 @@ use super::transferred_node::MaskedFlags;
 use super::transferred_node::MatchMode;
 use super::transferred_node::Restore;
 
+/// Runs the verify process.
 pub fn run_verify(
     threads: usize,
     fs_mnt: FSMount,

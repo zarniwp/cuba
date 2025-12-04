@@ -19,7 +19,7 @@ pub struct FSMount {
 }
 
 impl FSMount {
-    /// Creates a new instance of `FSMount`.
+    /// Creates a new `FSMount`.
     pub fn new(fs: FSHandle, abs_dir_path: Arc<NPath<Abs, Dir>>) -> Self {
         FSMount { fs, abs_dir_path }
     }
@@ -41,8 +41,9 @@ pub struct FSConnection {
     pub dest_mnt: FSMount,
 }
 
+/// Methods of `FSConnection`.
 impl FSConnection {
-    /// Creates a new instance of `FSConnection`.
+    /// Creates a new `FSConnection`.
     pub fn new(src_mnt: FSMount, dest_mnt: FSMount) -> Self {
         FSConnection { src_mnt, dest_mnt }
     }
@@ -74,6 +75,7 @@ impl FSConnection {
     }
 }
 
+/// Impl `Clone` for `FSConnection`.
 impl Clone for FSConnection {
     /// Clone the FSConnection, shares the FSMounts.
     fn clone(&self) -> Self {
@@ -93,8 +95,9 @@ pub struct FSBlockSize {
     pub maximum: Option<usize>,
 }
 
+/// Methods of `FSBlockSize`.
 impl FSBlockSize {
-    /// Creates a new instance of `FSBlockSize`.
+    /// Creates a new `FSBlockSize`.
     pub fn new(minimum: Option<usize>, recommended: usize, maximum: Option<usize>) -> Self {
         FSBlockSize {
             minimum,
@@ -123,15 +126,15 @@ impl FSBlockSize {
         let mut chosen = block_size_1.recommended.max(block_size_2.recommended);
 
         // Clamp between min and max if needed.
-        if let Some(min_value) = min {
-            if chosen < min_value {
-                chosen = min_value;
-            }
+        if let Some(min_value) = min
+            && chosen < min_value
+        {
+            chosen = min_value;
         }
-        if let Some(max_value) = max {
-            if chosen > max_value {
-                chosen = max_value;
-            }
+        if let Some(max_value) = max
+            && chosen > max_value
+        {
+            chosen = max_value;
         }
 
         chosen
@@ -145,7 +148,7 @@ pub struct FSWrite {
 }
 
 impl FSWrite {
-    /// Creates a new instance of `FSWrite`.
+    /// Creates a new `FSWrite`.
     pub fn new(writer: Box<dyn Write + Send>, thread_handle: Option<JoinHandle<()>>) -> Self {
         FSWrite {
             writer: Some(writer),

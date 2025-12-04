@@ -11,6 +11,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::shared::npath::{Dir, File, NPath, Rel, UNPath};
 
+/// Defines the `Flags` for transferred nodes.
 bitflags! {
     #[derive(PartialEq, Hash, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
     pub struct Flags: u8 {
@@ -22,14 +23,14 @@ bitflags! {
     }
 }
 
-// Match mode for MaskedFlags.
+/// Defines the `MatchMode` for masked flags.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum MatchMode {
     Eq,
     Uq,
 }
 
-// Flags with a mask.
+// Defines the `MaskedFlags`.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct MaskedFlags {
     match_mode: MatchMode,
@@ -37,8 +38,9 @@ pub struct MaskedFlags {
     mask: Flags,
 }
 
+/// Methods of `MaskedFlags`.
 impl MaskedFlags {
-    /// Constructor.
+    /// Creates a new instance of `MaskedFlags`.
     pub fn new() -> Self {
         Self {
             match_mode: MatchMode::Eq,
@@ -47,25 +49,25 @@ impl MaskedFlags {
         }
     }
 
-    /// Returns the flags.
+    /// Returns the `Flags`.
     pub fn flags(&self) -> Flags {
         self.flags
     }
 
-    /// Inserts other in flags.
+    /// Inserts `other` in `Flags`.
     pub fn insert(&mut self, other: Flags) -> &Self {
         self.flags.insert(other);
         self
     }
 
     #[allow(unused)]
-    /// Inserts other in flags.
+    /// Inserts `other` in `Flags``.
     pub fn remove(&mut self, other: Flags) -> &Self {
         self.flags.remove(other);
         self
     }
 
-    /// Returns true if flags contains other.
+    /// Returns true if `Flags` contains `other`.
     pub fn contains(&self, other: Flags) -> bool {
         self.flags.contains(other)
     }
@@ -97,7 +99,7 @@ impl MaskedFlags {
         }
     }
 
-    /// Returns true if masked bits match.
+    /// Returns true if masked bits match `other`.
     pub fn matches(&self, other: Flags) -> bool {
         match self.match_mode {
             MatchMode::Eq => (self.flags & self.mask) == (other & self.mask),
@@ -105,7 +107,7 @@ impl MaskedFlags {
         }
     }
 
-    /// Apply masked bits from self.flags into other, preserving bits outside the mask.
+    /// Apply masked bits from self.flags into `other`, preserving bits outside the mask.
     pub fn apply(&self, other: &mut Flags) {
         // Clear masked bits.
         *other &= !self.mask;
@@ -114,7 +116,7 @@ impl MaskedFlags {
     }
 }
 
-/// Impl Default for MaskedFlags.
+/// Impl `Default` for `MaskedFlags`.
 impl Default for MaskedFlags {
     fn default() -> Self {
         Self::new()
@@ -130,6 +132,8 @@ pub fn sig_valid_and_match(sig_a: Option<[u8; 32]>, sig_b: Option<[u8; 32]>) -> 
     }
 }
 
+/// Defines a `TransferredNode`.
+///
 /// Structure that holds information about a transferred node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransferredNode {
@@ -146,6 +150,7 @@ pub struct TransferredNode {
     pub src_signature: Option<[u8; 32]>,
 }
 
+/// Methods of `TransferredNode`.
 impl TransferredNode {
     /// Creates a new `TransferredNode` instance from a file.
     pub fn from_file(
@@ -173,34 +178,37 @@ impl TransferredNode {
     }
 }
 
-/// Map that holds all transferred nodes.
+/// Defines the `TransferredNodes`.
+///
+/// A Map that holds all transferred nodes.
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransferredNodes(
     #[serde_as(as = "HashMap<DisplayFromStr, _>")] pub HashMap<UNPath<Rel>, TransferredNode>,
 );
 
-/// Impl Default for TransferredNodes.
+/// Impl `Default` for `TransferredNodes`.
 impl Default for TransferredNodes {
     fn default() -> Self {
         Self::new()
     }
 }
 
+/// Methods of `TransferredNodes`.
 impl TransferredNodes {
-    /// Create new TransferredNodes
+    /// Create new `TransferredNodes`
     pub fn new() -> Self {
         TransferredNodes(HashMap::new())
     }
 
-    /// Insert flags for all transferred nodes.
+    /// Insert `flags` for all transferred nodes.
     pub fn insert_flags(&mut self, flags: Flags) {
         for node in self.values_mut() {
             node.flags.insert(flags)
         }
     }
 
-    /// Removes flags for all transferred nodes.
+    /// Removes `flags` for all transferred nodes.
     pub fn remove_flags(&mut self, flags: Flags) {
         for node in self.values_mut() {
             node.flags.remove(flags)
@@ -242,7 +250,7 @@ impl TransferredNodes {
     }
 }
 
-/// Impl Deref for TransferredNodes.
+/// Impl `Deref` for `TransferredNodes`.
 impl Deref for TransferredNodes {
     type Target = HashMap<UNPath<Rel>, TransferredNode>;
 
@@ -251,7 +259,7 @@ impl Deref for TransferredNodes {
     }
 }
 
-/// Impl DerefMut for TransferredNodes.
+/// Impl `DerefMut` for `TransferredNodes`.
 impl DerefMut for TransferredNodes {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -273,7 +281,7 @@ pub struct ViewMut<'a, T> {
 pub struct Backup;
 pub struct Restore;
 
-// Impl methods for view with backup type.
+/// Methods for view with backup type.
 impl<'a> View<'a, Backup> {
     /// Returns the transferred node for the given rel src node.
     pub fn get_node_for_src(&self, src_rel_path: &UNPath<Rel>) -> Option<&TransferredNode> {
@@ -285,13 +293,13 @@ impl<'a> View<'a, Backup> {
         self.nodes.keys()
     }
 
-    // Returns the dest rel path.
+    /// Returns the dest rel path.
     pub fn get_dest_rel_path(&self, node: &TransferredNode) -> UNPath<Rel> {
         node.dest_rel_path.clone()
     }
 }
 
-// Impl methods for mut view with backup type.
+/// Methods for mut view with backup type.
 impl<'a> ViewMut<'a, Backup> {
     /// Sets a transferred node.
     pub fn set_transferred_node(
@@ -311,7 +319,7 @@ impl<'a> ViewMut<'a, Backup> {
     }
 }
 
-// Impl methods for view with restore type.
+/// Methods for view with restore type.
 impl<'a> View<'a, Restore> {
     /// Returns the transferred node for the given rel src node.
     pub fn get_node_for_src(&self, src_rel_path: &UNPath<Rel>) -> Option<&TransferredNode> {
@@ -325,7 +333,7 @@ impl<'a> View<'a, Restore> {
         self.nodes.values().map(|node| &node.dest_rel_path)
     }
 
-    // Returns the dest rel path.
+    /// Returns the dest rel path.
     pub fn get_dest_rel_path(&self, node: &TransferredNode) -> Option<UNPath<Rel>> {
         self.nodes
             .iter()
@@ -334,7 +342,7 @@ impl<'a> View<'a, Restore> {
     }
 }
 
-// Impl methods for mut view with restore type.
+/// Methods for mut view with restore type.
 impl<'a> ViewMut<'a, Restore> {
     /// Sets a transferred node.
     pub fn set_transferred_node(

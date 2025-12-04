@@ -21,8 +21,9 @@ pub struct ProgressBars {
     thread_handle: Option<JoinHandle<()>>,
 }
 
+/// Methods of `ProgressBars`.
 impl ProgressBars {
-    /// Creates a new progress bars. Takes a message receiver.    
+    /// Creates a new `ProgressBars`. Takes a message receiver.    
     pub fn new(receiver: Arc<Receiver<Arc<dyn Message>>>, threads: usize) -> Self {
         let mut progress_bars = Vec::new();
         let mut error_occurred = Vec::new();
@@ -131,10 +132,10 @@ impl ProgressBars {
                                         }
                                     }
                                 }
-                                else if let Some(progress_message) = message.as_ref().as_any().downcast_ref::<ProgressMessage>() {
-                                    if let Some(total_bar_mutex) = progress_bars.get(total_index) {
-                                        if let Some(info) = progress_message.info() {
-                                            if let Some(progress_info) = info.as_any().downcast_ref::<ProgressInfo>() {
+                                else if let Some(progress_message) = message.as_ref().as_any().downcast_ref::<ProgressMessage>()
+                                    && let Some(total_bar_mutex) = progress_bars.get(total_index)
+                                        && let Some(info) = progress_message.info()
+                                            && let Some(progress_info) = info.as_any().downcast_ref::<ProgressInfo>() {
                                                 match progress_info {
                                                     ProgressInfo::Ticks => {
                                                         total_bar_mutex.lock().unwrap().inc(progress_message.ticks);
@@ -144,9 +145,6 @@ impl ProgressBars {
                                                     }
                                                 }
                                             }
-                                        }
-                                    }
-                                }
                             },
                             Err(_) => break, // channel closed
                         }

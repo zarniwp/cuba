@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 use super::npath::{Abs, Dir, NPath, Rel};
 
+/// Defines a `Config`.
 #[derive(Debug, Deserialize)]
 pub struct Config {
     /// Number of transfer threads.
@@ -19,7 +20,9 @@ pub struct Config {
     pub restore: HashMap<String, RestoreConfig>,
 }
 
+/// Methods of `Config`.
 impl Config {
+    /// Checks if a password id is used in the config.
     pub fn has_password_id(&self, password_id: &str) -> bool {
         if self.filesystem.has_password_id(password_id) {
             return true;
@@ -35,14 +38,16 @@ impl Config {
     }
 }
 
-/// The filesystem profiles.
+/// Defines a `FilesystemConfig`.
 #[derive(Debug, Deserialize)]
 pub struct FilesystemConfig {
     pub local: HashMap<String, LocalFS>,
     pub webdav: HashMap<String, WebDAVFS>,
 }
 
+/// Methods of `FilesystemConfig`.
 impl FilesystemConfig {
+    /// Checks if a password id is used in the filesystem config.
     pub fn has_password_id(&self, password_id: &str) -> bool {
         for webdav in self.webdav.values() {
             if webdav.password_id == password_id {
@@ -54,14 +59,14 @@ impl FilesystemConfig {
     }
 }
 
-/// The local filesystem profiles.
+// Defines a `LocalFS`.
 #[derive(Debug, Deserialize)]
 pub struct LocalFS {
     /// Directory.
     pub dir: NPath<Abs, Dir>,
 }
 
-/// The WebDAV filesystem profiles.
+/// Defines a `WebDAVFS`.
 #[derive(Debug, Deserialize)]
 pub struct WebDAVFS {
     /// Url.
@@ -77,7 +82,7 @@ pub struct WebDAVFS {
     pub timeout_secs: u64,
 }
 
-/// The backup profiles.
+/// Defines a `BackupConfig`.
 #[derive(Debug, Deserialize)]
 pub struct BackupConfig {
     /// The source filesystem.
@@ -92,10 +97,10 @@ pub struct BackupConfig {
     /// The destination directory.  
     pub dest_dir: NPath<Rel, Dir>,
 
-    /// Optional inclusion patterns (glob)
+    /// Optional inclusion patterns (glob).
     pub include: Option<Vec<String>>,
 
-    /// Optional exclusion patterns (glob)
+    /// Optional exclusion patterns (glob).
     pub exclude: Option<Vec<String>>,
 
     /// Encrypt?
@@ -106,7 +111,9 @@ pub struct BackupConfig {
     pub compression: bool,
 }
 
+/// Methods of `BackupConfig`.
 impl BackupConfig {
+    /// Checks if a password id is used in the backup config.
     pub fn has_password_id(&self, password_id: &str) -> bool {
         match &self.password_id {
             Some(id) => id == password_id,
@@ -115,7 +122,7 @@ impl BackupConfig {
     }
 }
 
-/// The restore profiles.
+/// Defines a `RestoreConfig`.
 #[derive(Debug, Deserialize)]
 pub struct RestoreConfig {
     /// The source filesystem.
@@ -130,13 +137,14 @@ pub struct RestoreConfig {
     /// The destination directory.  
     pub dest_dir: NPath<Rel, Dir>,
 
-    /// Optional inclusion patterns (glob)
+    /// Optional inclusion patterns (glob).
     pub include: Option<Vec<String>>,
 
-    /// Optional exclusion patterns (glob)
+    /// Optional exclusion patterns (glob).
     pub exclude: Option<Vec<String>>,
 }
 
+/// Example configuration file.
 pub const EXAMPLE_CONFIG: &str = r#"
 # Number of parallel threads to use for transfers
 transfer_threads = 10

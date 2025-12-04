@@ -46,26 +46,27 @@ fn create_fs_mount(
                 let abs_dir_path = Arc::new(webdav_fs.url.add_rel_dir(rel_dir_path));
                 Ok(FSMount::new(fs, abs_dir_path))
             }
-            Err(err) => {
-                return Err(Arc::new(err));
-            }
+            Err(err) => Err(Arc::new(err)),
         }
     } else {
-        return Err(Arc::new(StringError::new(format!(
+        Err(Arc::new(StringError::new(format!(
             "No filesystem with the name {:?} found",
             fs
-        ))));
+        ))))
     }
 }
 
+/// Defines the cuba api.
+///
 /// The cuba api. This provides access to backup, restore, verify and clean to cli or gui.
 pub struct Cuba {
     config: Option<Config>,
     sender: Sender<Arc<dyn Message>>,
 }
 
+/// Methods of `Cuba`.
 impl Cuba {
-    /// Creates an api instance with a message sender.
+    /// Creates an new api instance with a message sender.
     pub fn new(sender: Sender<Arc<dyn Message>>) -> Self {
         Self {
             config: None,

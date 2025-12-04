@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 
 use crate::shared::npath::{NPath, Rel};
 
-// Creates a globset matcher.
+/// Creates a globset matcher.
 pub fn create_matcher(patterns: Vec<String>) -> Result<GlobSet, globset::Error> {
     let mut builder = GlobSetBuilder::new();
 
@@ -15,7 +15,7 @@ pub fn create_matcher(patterns: Vec<String>) -> Result<GlobSet, globset::Error> 
     builder.build()
 }
 
-/// Move npaths with the depth n from all_paths to depth_paths.
+/// Move `NPath` with the depth n from `all_paths` to `depth_paths`.
 pub fn move_rel_npaths<T>(
     all_paths: &mut VecDeque<NPath<Rel, T>>,
     depth_paths: &mut VecDeque<NPath<Rel, T>>,
