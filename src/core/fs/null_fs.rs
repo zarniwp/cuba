@@ -32,7 +32,7 @@ impl Write for DevNull {
 }
 
 /// Defines a null filesystem.
-/// 
+///
 /// A struct representing a null fs that implements the FS trait.
 pub struct NullFS {
     connected: bool,

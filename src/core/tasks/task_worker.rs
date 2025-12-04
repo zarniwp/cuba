@@ -28,7 +28,7 @@ trait_set! {
 }
 
 /// Defines the `TaskWorker`.
-/// 
+///
 /// A struct representing the task worker.
 pub struct TaskWorker {
     fs_conn: FSConnection,

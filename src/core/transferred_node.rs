@@ -133,7 +133,7 @@ pub fn sig_valid_and_match(sig_a: Option<[u8; 32]>, sig_b: Option<[u8; 32]>) -> 
 }
 
 /// Defines a `TransferredNode`.
-/// 
+///
 /// Structure that holds information about a transferred node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransferredNode {
@@ -179,7 +179,7 @@ impl TransferredNode {
 }
 
 /// Defines the `TransferredNodes`.
-/// 
+///
 /// A Map that holds all transferred nodes.
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]

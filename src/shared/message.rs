@@ -270,7 +270,7 @@ macro_rules! send_error {
 }
 
 /// Defines a `MsgDispatcher`.
-/// 
+///
 /// Sends messages from a source to all subscribers.
 pub struct MsgDispatcher<T: Send + Sync + Clone + 'static> {
     source: Arc<Receiver<T>>,
@@ -281,7 +281,7 @@ pub struct MsgDispatcher<T: Send + Sync + Clone + 'static> {
 
 /// Methods of `MsgDispatcher`.
 impl<T: Send + Sync + Clone + 'static> MsgDispatcher<T> {
-    /// Creates a `MsgDispatcher`. 
+    /// Creates a `MsgDispatcher`.
     /// Receives messages from source and sends them to the
     /// subscribed receivers.
     pub fn new(source: Arc<Receiver<T>>) -> Self {
