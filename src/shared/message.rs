@@ -28,7 +28,7 @@ pub struct StringInfo {
 
 /// Methods of `StringInfo`.
 impl StringInfo {
-    /// Creates a new instance of `StringInfo`.    
+    /// Creates a new `StringInfo`.    
     pub fn new(message: String) -> Self {
         StringInfo { message }
     }
@@ -71,7 +71,7 @@ pub struct InfoMessage {
 
 /// Methods of `InfoMessage`.
 impl InfoMessage {
-    /// Creates a new instance of `InfoMessage`.
+    /// Creates a new `InfoMessage`.
     #[allow(dead_code)]
     pub fn new(info: Arc<dyn Info>) -> Self {
         InfoMessage { info }
@@ -116,7 +116,7 @@ pub struct WarnMessage {
 
 /// Methods of `WarnMessage`.
 impl WarnMessage {
-    /// Creates a new instance of `WarnMessage`.
+    /// Creates a new `WarnMessage`.
     #[allow(dead_code)]
     pub fn new(warning: Arc<dyn Info>) -> Self {
         WarnMessage { warning }
@@ -160,7 +160,7 @@ pub struct StringError {
 
 /// Methods of `StringError`.
 impl StringError {
-    /// Creates a new instance of `StringError`.
+    /// Creates a new `StringError`.
     pub fn new(message: String) -> Self {
         StringError { message }
     }
@@ -196,7 +196,7 @@ pub struct ErrorMessage {
 
 /// Defines methods of `ErrorMessage`.
 impl ErrorMessage {
-    /// Creates a new instance of `ErrorMessage`.
+    /// Creates a new `ErrorMessage`.
     pub fn new(error: Arc<dyn Error + Send + Sync>) -> Self {
         ErrorMessage { error }
     }
@@ -270,7 +270,7 @@ macro_rules! send_error {
 }
 
 /// Defines a `MsgDispatcher`.
-///
+/// 
 /// Sends messages from a source to all subscribers.
 pub struct MsgDispatcher<T: Send + Sync + Clone + 'static> {
     source: Arc<Receiver<T>>,
@@ -281,7 +281,8 @@ pub struct MsgDispatcher<T: Send + Sync + Clone + 'static> {
 
 /// Methods of `MsgDispatcher`.
 impl<T: Send + Sync + Clone + 'static> MsgDispatcher<T> {
-    /// Creates a `MsgDispatcher`. Receives messages from source and sends them to the
+    /// Creates a `MsgDispatcher`. 
+    /// Receives messages from source and sends them to the
     /// subscribed receivers.
     pub fn new(source: Arc<Receiver<T>>) -> Self {
         Self {
