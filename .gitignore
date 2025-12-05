@@ -2,6 +2,7 @@
 **/*.rs.bk
 **/*.swp
 .DS_Store
+.continue
 cuba.info.log
 cuba.error.log
 cuba.warn.log
