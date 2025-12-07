@@ -4,8 +4,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
-use crate::core::cuba_json::read_cuba_json;
-use crate::core::cuba_json::write_cuba_json;
 use crate::send_error;
 use crate::shared::message::Message;
 use crate::shared::npath::Rel;
@@ -13,12 +11,13 @@ use crate::shared::npath::UNPath;
 use crate::shared::progress_message::ProgressInfo;
 use crate::shared::progress_message::ProgressMessage;
 
+use super::cuba_json::read_cuba_json;
+use super::cuba_json::write_cuba_json;
+use super::fs::fs_base::FSConnection;
+use super::fs::fs_base::FSMount;
 use super::password_cache::PasswordCache;
 use super::tasks::node_verify_task::node_verify_task;
 use super::tasks::task_worker::TaskWorker;
-use crate::core::fs::fs_base::FSConnection;
-use crate::core::fs::fs_base::FSMount;
-
 use super::transferred_node::Flags;
 use super::transferred_node::MaskedFlags;
 use super::transferred_node::MatchMode;

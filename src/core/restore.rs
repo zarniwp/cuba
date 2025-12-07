@@ -1,10 +1,8 @@
 use crossbeam_channel::Sender;
-use globset::GlobSet;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::core::cuba_json::read_cuba_json;
 use crate::send_error;
 use crate::shared::message::Message;
 use crate::shared::npath::Dir;
@@ -15,13 +13,16 @@ use crate::shared::npath::UNPath;
 use crate::shared::progress_message::ProgressInfo;
 use crate::shared::progress_message::ProgressMessage;
 
+use super::cuba_json::read_cuba_json;
 use super::fs::fs_base::FSConnection;
+use super::glob_matcher::ExcludeMatcher;
+use super::glob_matcher::GlobMatcher;
+use super::glob_matcher::IncludeMatcher;
 use super::password_cache::PasswordCache;
 use super::tasks::directory_restore_task::directory_restore_task;
 use super::tasks::file_restore_task::file_restore_task;
 use super::tasks::task_worker::TaskWorker;
 use super::transferred_node::Restore;
-use super::util::create_matcher;
 use super::util::move_rel_npaths;
 
 #[allow(clippy::too_many_arguments)]
@@ -32,13 +33,13 @@ pub fn run_restore(
     fs_conn: FSConnection,
     sender: Sender<Arc<dyn Message>>,
 ) {
-    let mut include_globset: Option<GlobSet> = None;
-    let mut exclude_globset: Option<GlobSet> = None;
+    let mut include_matcher: Option<IncludeMatcher> = None;
+    let mut exclude_matcher: Option<ExcludeMatcher> = None;
 
     // Compile include patterns.
     if let Some(include_patterns) = include_patterns {
-        include_globset = match create_matcher(include_patterns.to_vec()) {
-            Ok(set) => Some(set),
+        include_matcher = match GlobMatcher::new(include_patterns) {
+            Ok(matcher) => Some(matcher.include_matcher()),
             Err(err) => {
                 send_error!(sender, err);
                 return;
@@ -48,8 +49,8 @@ pub fn run_restore(
 
     // Compile exclude patterns.
     if let Some(exclude_patterns) = exclude_patterns {
-        exclude_globset = match create_matcher(exclude_patterns.to_vec()) {
-            Ok(set) => Some(set),
+        exclude_matcher = match GlobMatcher::new(exclude_patterns) {
+            Ok(matcher) => Some(matcher.exclude_matcher()),
             Err(err) => {
                 send_error!(sender, err);
                 return;
@@ -77,12 +78,12 @@ pub fn run_restore(
         let mut included = true;
         let mut excluded = false;
 
-        if let Some(ref globset) = include_globset {
-            included = globset.is_match(src_rel_path.to_path());
+        if let Some(ref matcher) = include_matcher {
+            included = matcher.is_match(src_rel_path);
         }
 
-        if let Some(ref globset) = exclude_globset {
-            excluded = globset.is_match(src_rel_path.to_path());
+        if let Some(ref matcher) = exclude_matcher {
+            excluded = matcher.is_match(src_rel_path);
         }
 
         if included && !excluded {

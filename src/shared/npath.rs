@@ -261,8 +261,16 @@ impl<K> UNPath<K> {
         }
     }
 
-    /// Returns the `UNPath` as nfc string.
-    pub fn to_nfc(&self) -> String {
+    /// Returns the `UNPath` as raw str.
+    pub fn to_raw(&self) -> &str {
+        match self {
+            UNPath::File(file_path) => file_path.to_raw(),
+            UNPath::Dir(dir_path) => dir_path.to_raw(),
+        }
+    }
+
+    /// Returns the `UNPath` as nfc str.
+    pub fn to_nfc(&self) -> &str {
         match self {
             UNPath::File(file_path) => file_path.to_nfc(),
             UNPath::Dir(dir_path) => dir_path.to_nfc(),
@@ -518,9 +526,14 @@ impl<K, T> NPath<K, T> {
         Path::new(&self.path_raw)
     }
 
-    /// Returns the `NPath` as nfc string.
-    pub fn to_nfc(&self) -> String {
-        self.path_nfc.clone()
+    /// Returns the `NPath` as raw str.
+    pub fn to_raw(&self) -> &str {
+        &self.path_raw
+    }
+
+    /// Returns the `NPath` as nfc str.
+    pub fn to_nfc(&self) -> &str {
+        &self.path_nfc
     }
 }
 

@@ -4,6 +4,7 @@ mod backup;
 mod clean;
 mod cuba_json;
 mod fs;
+mod glob_matcher;
 mod keyring;
 mod password_cache;
 mod process_data;

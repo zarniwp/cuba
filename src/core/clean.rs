@@ -1,7 +1,6 @@
 use crossbeam_channel::Sender;
 use std::sync::Arc;
 
-use crate::core::cuba_json::{CUBA_JSON_REL_PATH, read_cuba_json, write_cuba_json};
 use crate::send_error;
 use crate::send_warns;
 use crate::shared::clean_message::{CleanError, CleanInfo, CleanMessage};
@@ -10,6 +9,9 @@ use crate::shared::npath::{Abs, Rel, UNPath};
 use crate::shared::progress_message::ProgressInfo;
 use crate::shared::progress_message::ProgressMessage;
 
+use super::cuba_json::CUBA_JSON_REL_PATH;
+use super::cuba_json::read_cuba_json;
+use super::cuba_json::write_cuba_json;
 use super::fs::fs_base::FSMount;
 use super::transferred_node::{Flags, MaskedFlags, Restore, TransferredNodes};
 
