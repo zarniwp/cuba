@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
+use unicode_segmentation::UnicodeSegmentation;
 
 static UNIX_ROOT: Lazy<Regex> = Lazy::new(|| Regex::new(r"^/").unwrap());
 static WINDOWS_DRIVE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z]:").unwrap());
@@ -26,7 +27,7 @@ pub enum NPathRoot {
 /// Impls for `NPathRoot`.
 impl NPathRoot {
     /// Returns the `NPathRoot` content.
-    pub fn content(&self) -> &str {
+    pub fn unicode(&self) -> &str {
         match &self {
             NPathRoot::Unix => "",
             NPathRoot::WindowsDrive(drive) => drive,
@@ -39,7 +40,7 @@ impl NPathRoot {
 /// Impl `Display` for `NPathRoot`.
 impl fmt::Display for NPathRoot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.content())
+        write!(f, "{}", self.unicode())
     }
 }
 
@@ -52,11 +53,11 @@ pub enum NPathComponent {
 
 /// Impls for `NPathComponent`
 impl NPathComponent {
-    /// Returns the `NPathComponent` content.
-    pub fn content(&self) -> &str {
+    /// Returns the `NPathComponent` unicode.
+    pub fn unicode(&self) -> &str {
         match &self {
-            NPathComponent::Root(root) => root.content(),
-            NPathComponent::Normal(segment) => segment,
+            NPathComponent::Root(root) => root.unicode(),
+            NPathComponent::Normal(unicode) => unicode,
         }
     }
 }
@@ -64,16 +65,16 @@ impl NPathComponent {
 /// Impl `Display` for `NPathComponent`.
 impl fmt::Display for NPathComponent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.content())
+        write!(f, "{}", self.unicode())
     }
 }
 
 /// Normalizes a path to canonical internal representation with separator `/`.
 fn normalize_path(path: &str) -> String {
-    let normalized_path: String = path.replace('\\', "/");
+    let norm_path: String = path.replace('\\', "/");
 
     // trim trailing slash.
-    normalized_path.trim_end_matches('/').to_string()
+    norm_path.trim_end_matches('/').to_string()
 }
 
 /// Checks, if a path has a root.
@@ -129,8 +130,8 @@ pub enum UNPath<K> {
 impl fmt::Debug for UNPath<Abs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UNPath::File(abs_file_path) => write!(f, "abs:file:{}", abs_file_path.path_raw),
-            UNPath::Dir(abs_dir_path) => write!(f, "abs:dir:{}", abs_dir_path.path_raw),
+            UNPath::File(abs_file_path) => write!(f, "abs:file:{}", abs_file_path.unicode),
+            UNPath::Dir(abs_dir_path) => write!(f, "abs:dir:{}", abs_dir_path.unicode),
         }
     }
 }
@@ -139,8 +140,8 @@ impl fmt::Debug for UNPath<Abs> {
 impl fmt::Debug for UNPath<Rel> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UNPath::File(rel_file_path) => write!(f, "rel:file:{}", rel_file_path.path_raw),
-            UNPath::Dir(rel_dir_path) => write!(f, "rel:dir:{}", rel_dir_path.path_raw),
+            UNPath::File(rel_file_path) => write!(f, "rel:file:{}", rel_file_path.unicode),
+            UNPath::Dir(rel_dir_path) => write!(f, "rel:dir:{}", rel_dir_path.unicode),
         }
     }
 }
@@ -149,8 +150,8 @@ impl fmt::Debug for UNPath<Rel> {
 impl fmt::Display for UNPath<Abs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UNPath::File(abs_file_path) => write!(f, "abs:file:{}", abs_file_path.path_raw),
-            UNPath::Dir(abs_dir_path) => write!(f, "abs:dir:{}", abs_dir_path.path_raw),
+            UNPath::File(abs_file_path) => write!(f, "abs:file:{}", abs_file_path.unicode),
+            UNPath::Dir(abs_dir_path) => write!(f, "abs:dir:{}", abs_dir_path.unicode),
         }
     }
 }
@@ -159,8 +160,8 @@ impl fmt::Display for UNPath<Abs> {
 impl fmt::Display for UNPath<Rel> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UNPath::File(rel_file_path) => write!(f, "rel:file:{}", rel_file_path.path_raw),
-            UNPath::Dir(rel_dir_path) => write!(f, "rel:dir:{}", rel_dir_path.path_raw),
+            UNPath::File(rel_file_path) => write!(f, "rel:file:{}", rel_file_path.unicode),
+            UNPath::Dir(rel_dir_path) => write!(f, "rel:dir:{}", rel_dir_path.unicode),
         }
     }
 }
@@ -262,10 +263,10 @@ impl<K> UNPath<K> {
     }
 
     /// Returns the `UNPath` as raw str.
-    pub fn to_raw(&self) -> &str {
+    pub fn to_unicode(&self) -> &str {
         match self {
-            UNPath::File(file_path) => file_path.to_raw(),
-            UNPath::Dir(dir_path) => dir_path.to_raw(),
+            UNPath::File(file_path) => file_path.to_unicode(),
+            UNPath::Dir(dir_path) => dir_path.to_unicode(),
         }
     }
 
@@ -413,8 +414,8 @@ impl<K> Hash for UNPath<K> {
 /// `NPath<Abs, Dir> = NPath<Abs, File> - NPath<Rel, File>`
 /// `NPath<Rel, T> = NPath<Abs, T> - NPath<Abs, Dir>`
 pub struct NPath<K, T> {
-    path_raw: String,
-    path_nfc: String, // Only use for comparsion and hashing.
+    unicode: String,
+    nfc: String,
     _marker: PhantomData<(K, T)>,
 }
 
@@ -423,10 +424,10 @@ impl<T> TryFrom<&str> for NPath<Abs, T> {
     type Error = NPathError;
 
     fn try_from(path: &str) -> Result<Self, Self::Error> {
-        let normalized_path = normalize_path(path);
+        let norm_path = normalize_path(path);
 
-        if has_root(&normalized_path) || normalized_path.is_empty() {
-            Ok(NPath::new(&normalized_path))
+        if has_root(&norm_path) || norm_path.is_empty() {
+            Ok(NPath::from_unicode(&norm_path))
         } else {
             Err(NPathError::NoAbsPath)
         }
@@ -438,10 +439,10 @@ impl<T> TryFrom<String> for NPath<Abs, T> {
     type Error = NPathError;
 
     fn try_from(path: String) -> Result<Self, Self::Error> {
-        let normalized_path = normalize_path(&path);
+        let norm_path = normalize_path(&path);
 
-        if has_root(&normalized_path) || normalized_path.is_empty() {
-            Ok(NPath::new(&normalized_path))
+        if has_root(&norm_path) || norm_path.is_empty() {
+            Ok(NPath::from_unicode(&norm_path))
         } else {
             Err(NPathError::NoAbsPath)
         }
@@ -453,10 +454,10 @@ impl<T> TryFrom<&str> for NPath<Rel, T> {
     type Error = NPathError;
 
     fn try_from(path: &str) -> Result<Self, Self::Error> {
-        let normalized_path = normalize_path(path);
+        let norm_path = normalize_path(path);
 
-        if !has_root(&normalized_path) || normalized_path.is_empty() {
-            Ok(NPath::new(&normalized_path))
+        if !has_root(&norm_path) || norm_path.is_empty() {
+            Ok(NPath::from_unicode(&norm_path))
         } else {
             Err(NPathError::NoRelPath)
         }
@@ -468,10 +469,10 @@ impl<T> TryFrom<String> for NPath<Rel, T> {
     type Error = NPathError;
 
     fn try_from(path: String) -> Result<Self, Self::Error> {
-        let normalized_path = normalize_path(&path);
+        let norm_path = normalize_path(&path);
 
-        if !has_root(&normalized_path) || normalized_path.is_empty() {
-            Ok(NPath::new(&normalized_path))
+        if !has_root(&norm_path) || norm_path.is_empty() {
+            Ok(NPath::from_unicode(&norm_path))
         } else {
             Err(NPathError::NoRelPath)
         }
@@ -495,45 +496,45 @@ impl<K, T> fmt::Display for NPath<K, T> {
 /// Methods for `NPath`.
 impl<K, T> NPath<K, T> {
     /// Create a new `NPath`, only for internal use.
-    fn new(path_str: &str) -> Self {
-        let path_raw = path_str.to_string();
-        let path_nfc: String = path_str.nfc().collect(); // only for equality & hashing
+    fn from_unicode(path_str: &str) -> Self {
+        let unicode = path_str.to_string();
+        let nfc = path_str.nfc().collect();
         Self {
-            path_raw,
-            path_nfc,
+            unicode,
+            nfc,
             _marker: PhantomData,
         }
     }
 
     /// Returns true, if the `NPath` ends with `rel_path`.
     pub fn ends_with(&self, rel_path: &NPath<Rel, T>) -> bool {
-        self.path_raw.ends_with(&rel_path.path_raw)
+        self.nfc.ends_with(&rel_path.nfc)
     }
 
     /// Clears the `NPath`.
     pub fn clear(&mut self) {
-        self.path_raw.clear();
-        self.path_nfc.clear();
+        self.unicode.clear();
+        self.nfc.clear();
     }
 
     /// Returns true if the `NPath` is empty.
     pub fn is_empty(&self) -> bool {
-        self.path_raw.is_empty()
+        self.unicode.is_empty()
     }
 
     /// Returns the `NPath` as path.
     pub fn to_path(&self) -> &Path {
-        Path::new(&self.path_raw)
+        Path::new(&self.unicode)
     }
 
-    /// Returns the `NPath` as raw str.
-    pub fn to_raw(&self) -> &str {
-        &self.path_raw
+    /// Returns the `NPath` as unicode str.
+    pub fn to_unicode(&self) -> &str {
+        &self.unicode
     }
 
     /// Returns the `NPath` as nfc str.
     pub fn to_nfc(&self) -> &str {
-        &self.path_nfc
+        &self.nfc
     }
 }
 
@@ -541,8 +542,8 @@ impl<K, T> NPath<K, T> {
 impl<K, T> Clone for NPath<K, T> {
     fn clone(&self) -> Self {
         NPath {
-            path_raw: self.path_raw.clone(),
-            path_nfc: self.path_nfc.clone(),
+            unicode: self.unicode.clone(),
+            nfc: self.nfc.clone(),
             _marker: PhantomData,
         }
     }
@@ -554,14 +555,14 @@ impl<K, T> Eq for NPath<K, T> {}
 // Impl of `PartialEq` for `NPath`.
 impl<K1, T1, K2, T2> PartialEq<NPath<K2, T2>> for NPath<K1, T1> {
     fn eq(&self, other: &NPath<K2, T2>) -> bool {
-        self.path_nfc == other.path_nfc
+        self.nfc == other.nfc
     }
 }
 
 /// Impl of `Hash` for `NPath`.
 impl<K, T> Hash for NPath<K, T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.path_nfc.hash(state);
+        self.nfc.hash(state);
     }
 }
 
@@ -572,7 +573,7 @@ impl<K, T> Serialize for NPath<K, T> {
         S: Serializer,
     {
         // Serialize the inner path as a string
-        serializer.serialize_str(&self.path_raw)
+        serializer.serialize_str(&self.unicode)
     }
 }
 
@@ -594,7 +595,7 @@ where
 /// Impl of `Default` for an absolute `NPath`.
 impl<T> Default for NPath<Abs, T> {
     fn default() -> Self {
-        NPath::new("")
+        NPath::from_unicode("")
     }
 }
 
@@ -602,13 +603,13 @@ impl<T> Default for NPath<Abs, T> {
 impl<T> NPath<Abs, T> {
     /// Returns the absolut path as os path.
     pub fn as_os_path(&self) -> PathBuf {
-        let os_string = self.path_raw.replace("/", std::path::MAIN_SEPARATOR_STR);
+        let os_string = self.unicode.replace("/", std::path::MAIN_SEPARATOR_STR);
         PathBuf::from(os_string)
     }
 
     /// Returns the path components.
     pub fn components(&self) -> impl Iterator<Item = NPathComponent> + '_ {
-        let path = self.path_raw.as_str();
+        let path = self.unicode.as_str();
 
         let (root, rest) = if let Some(expr_match) = URL_SCHEME.find(path) {
             (
@@ -636,11 +637,11 @@ impl<T> NPath<Abs, T> {
         )
     }
 
-    /// `NPath<Abs, T> = NPath<Abs, T> + NPath<Abs, Dir>`
+    /// `NPath<Abs, T> = NPath<Abs, T> - NPath<Abs, Dir>`
     pub fn sub_abs_dir(&self, abs_dir_path: &NPath<Abs, Dir>) -> Result<NPath<Rel, T>, NPathError> {
-        match self.path_raw.strip_prefix(abs_dir_path.path_raw.as_str()) {
-            Some(rel_path) => Ok(NPath::new(rel_path.trim_start_matches('/'))),
-            None => Err(NPathError::InvalidOperation),
+        match sub_from_start(&self.unicode, &self.nfc, &abs_dir_path.nfc) {
+            Ok(unicode) => Ok(NPath::from_unicode(&unicode)),
+            Err(err) => Err(err),
         }
     }
 }
@@ -648,7 +649,7 @@ impl<T> NPath<Abs, T> {
 impl<T> NPath<Rel, T> {
     /// Returns the path components.
     pub fn components(&self) -> impl Iterator<Item = NPathComponent> + '_ {
-        self.path_raw
+        self.unicode
             .split("/")
             .map(|segment| NPathComponent::Normal(segment.into()))
     }
@@ -658,12 +659,12 @@ impl<T> NPath<Rel, T> {
 impl NPath<Abs, Dir> {
     /// `NPath<Abs, Dir> = NPath<Abs, Dir> + NPath<Rel, Dir>`
     pub fn add_rel_dir(&self, rel_dir_path: &NPath<Rel, Dir>) -> NPath<Abs, Dir> {
-        NPath::new(&(self.path_raw.clone() + "/" + &rel_dir_path.path_raw))
+        NPath::from_unicode(&(self.unicode.clone() + "/" + &rel_dir_path.unicode))
     }
 
     /// `NPath<Abs, File> = NPath<Abs, Dir> + NPath<Rel, File>`
     pub fn add_rel_file(&self, rel_file_path: &NPath<Rel, File>) -> NPath<Abs, File> {
-        NPath::new(&(self.path_raw.clone() + "/" + &rel_file_path.path_raw))
+        NPath::from_unicode(&(self.unicode.clone() + "/" + &rel_file_path.unicode))
     }
 
     /// `NPath<Abs, Dir> = NPath<Abs, Dir> - NPath<Rel, Dir>`
@@ -671,9 +672,9 @@ impl NPath<Abs, Dir> {
         &self,
         rel_dir_path: &NPath<Rel, Dir>,
     ) -> Result<NPath<Abs, Dir>, NPathError> {
-        match self.path_raw.strip_suffix(rel_dir_path.path_raw.as_str()) {
-            Some(abs_dir_path) => Ok(NPath::new(abs_dir_path.trim_end_matches('/'))),
-            None => Err(NPathError::InvalidOperation),
+        match sub_from_end(&self.unicode, &self.nfc, &rel_dir_path.nfc) {
+            Ok(unicode) => Ok(NPath::from_unicode(&unicode)),
+            Err(err) => Err(err),
         }
     }
 
@@ -691,10 +692,10 @@ impl NPath<Abs, Dir> {
         let mut rel_done = false;
 
         loop {
-            if abs_components[abs_idx].content().nfc().to_string()
-                == rel_components[rel_idx].content().nfc().to_string()
+            if abs_components[abs_idx].unicode().nfc().to_string()
+                == rel_components[rel_idx].unicode().nfc().to_string()
             {
-                union_path.push_str(abs_components[abs_idx].content());
+                union_path.push_str(abs_components[abs_idx].unicode());
                 union_path.push('/');
 
                 if abs_idx + 1 < abs_components.len() {
@@ -704,14 +705,14 @@ impl NPath<Abs, Dir> {
                     rel_idx += 1;
                 }
             } else if rel_idx == 0 {
-                union_path.push_str(abs_components[abs_idx].content());
+                union_path.push_str(abs_components[abs_idx].unicode());
                 union_path.push('/');
 
                 if abs_idx + 1 < abs_components.len() {
                     abs_idx += 1;
                 }
             } else {
-                union_path.push_str(rel_components[rel_idx].content());
+                union_path.push_str(rel_components[rel_idx].unicode());
                 union_path.push('/');
 
                 if rel_idx + 1 < rel_components.len() {
@@ -755,9 +756,9 @@ impl NPath<Abs, File> {
         &self,
         rel_file_path: &NPath<Rel, File>,
     ) -> Result<NPath<Abs, File>, NPathError> {
-        match self.path_raw.strip_suffix(rel_file_path.path_raw.as_str()) {
-            Some(abs_file_path) => Ok(NPath::new(abs_file_path.trim_end_matches('/'))),
-            None => Err(NPathError::InvalidOperation),
+        match sub_from_end(&self.unicode, &self.nfc, &rel_file_path.nfc) {
+            Ok(unicode) => Ok(NPath::from_unicode(&unicode)),
+            Err(err) => Err(err),
         }
     }
 }
@@ -765,14 +766,14 @@ impl NPath<Abs, File> {
 /// Impl of `Default` for a relative `NPath`.
 impl<T> Default for NPath<Rel, T> {
     fn default() -> Self {
-        NPath::new("")
+        NPath::from_unicode("")
     }
 }
 
 impl<K> NPath<K, File> {
     /// Pushes an extension to the file `NPath`.
     pub fn push_extension(&mut self, extension: &str) {
-        *self = NPath::new(&(self.path_raw.clone() + "." + extension))
+        *self = NPath::from_unicode(&(self.unicode.clone() + "." + extension))
     }
 
     /// Pops (removes) an extension from the file `NPath`.
@@ -781,8 +782,8 @@ impl<K> NPath<K, File> {
             Some(ext) => {
                 if let Some(ext_str) = ext.to_str() {
                     let suffix = format!(".{}", ext_str);
-                    if let Some(stripped) = self.path_raw.strip_suffix(&suffix) {
-                        *self = NPath::new(stripped);
+                    if let Some(stripped) = self.unicode.strip_suffix(&suffix) {
+                        *self = NPath::from_unicode(stripped);
                         return true;
                     }
                 }
@@ -808,6 +809,47 @@ impl<K> NPath<K, File> {
 
     /// Returns the extension of the file `NPath`.
     pub fn extension(&self) -> Option<&OsStr> {
-        Path::new(&self.path_raw).extension()
+        Path::new(&self.unicode).extension()
+    }
+}
+
+/// Helper for subtraction
+fn sub_from_start(
+    left_unicode: &str,
+    left_nfc: &str,
+    right_nfc: &str,
+) -> Result<String, NPathError> {
+    if left_nfc.starts_with(right_nfc) {
+        // Count the nfc graphemes of the right path.
+        let right_grapheme_len = right_nfc.graphemes(true).count();
+
+        // Skip the first `right_grapheme_len` graphemes of the original unicode
+        let sub_unicode: String = left_unicode
+            .graphemes(true)
+            .skip(right_grapheme_len)
+            .collect();
+
+        Ok(sub_unicode.trim_start_matches('/').to_string())
+    } else {
+        Err(NPathError::InvalidOperation)
+    }
+}
+
+/// Helper for subtraction
+fn sub_from_end(left_unicode: &str, left_nfc: &str, right_nfc: &str) -> Result<String, NPathError> {
+    if left_nfc.ends_with(right_nfc) {
+        // Count the nfc graphemes of the right path.
+        let right_grapheme_len = right_nfc.graphemes(true).count();
+
+        // Skip the last `right_grapheme_len` graphemes of the original unicode.
+        let sub_unicode: String = left_unicode
+            .graphemes(true)
+            .take(left_unicode.graphemes(true).count() - right_grapheme_len)
+            .collect();
+
+        // Trim trailing slash.
+        Ok(sub_unicode.trim_end_matches('/').to_string())
+    } else {
+        Err(NPathError::InvalidOperation)
     }
 }

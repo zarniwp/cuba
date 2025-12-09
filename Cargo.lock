@@ -587,6 +587,7 @@ dependencies = [
  "toml 0.9.8",
  "trait-set",
  "unicode-normalization",
+ "unicode-segmentation",
  "url",
  "warned",
 ]

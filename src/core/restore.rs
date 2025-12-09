@@ -36,7 +36,7 @@ pub fn run_restore(
     let mut include_matcher: Option<IncludeMatcher> = None;
     let mut exclude_matcher: Option<ExcludeMatcher> = None;
 
-    // Compile include patterns.
+    // Create include matcher.
     if let Some(include_patterns) = include_patterns {
         include_matcher = match GlobMatcher::new(include_patterns) {
             Ok(matcher) => Some(matcher.include_matcher()),
@@ -47,7 +47,7 @@ pub fn run_restore(
         }
     };
 
-    // Compile exclude patterns.
+    // Create exclude matcher.
     if let Some(exclude_patterns) = exclude_patterns {
         exclude_matcher = match GlobMatcher::new(exclude_patterns) {
             Ok(matcher) => Some(matcher.exclude_matcher()),
