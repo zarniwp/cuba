@@ -356,6 +356,7 @@ impl WebDAVFS {
                         b"resourcetype" if context.last() == Some(&Context::Prop) => {
                             is_dir = Some(false);
                         }
+
                         b"collection" if context.last() == Some(&Context::Resourcetype) => {
                             is_dir = Some(true);
                         }
@@ -529,7 +530,7 @@ impl FS for WebDAVFS {
                 let xml = response
                     .text()
                     .map_err(|err| FSError::MetaFailed(abs_path.clone(), err.into()))?;
-
+                
                 match self.parse_response(abs_path, true, &xml)?.as_mut_slice() {
                     [fs_node] => {
                         // Type of fs_node.abs_path and abs_path must be the same.
