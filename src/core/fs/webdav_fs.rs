@@ -216,6 +216,9 @@ impl WebDAVFS {
         let mut created: Option<SystemTime> = None;
         let mut modified: Option<SystemTime> = None;
 
+        // We do not support multistat.
+        let mut response: bool = false;
+
         while let Ok(event) = reader.read_event_into(&mut xml_buf) {
             match event {
                 Event::Start(ref element) => {
@@ -225,9 +228,13 @@ impl WebDAVFS {
 
                     match local_name_ref {
                         b"response" if context.is_empty() => {
-                            entry_rel_path = None;
+                            if !response {
+                                response = true;
 
-                            context.push(Context::Response);
+                                entry_rel_path = None;
+
+                                context.push(Context::Response);
+                            }
                         }
                         b"href" if context.last() == Some(&Context::Response) => {
                             context.push(Context::Href);
@@ -530,7 +537,7 @@ impl FS for WebDAVFS {
                 let xml = response
                     .text()
                     .map_err(|err| FSError::MetaFailed(abs_path.clone(), err.into()))?;
-                
+
                 match self.parse_response(abs_path, true, &xml)?.as_mut_slice() {
                     [fs_node] => {
                         // Type of fs_node.abs_path and abs_path must be the same.
