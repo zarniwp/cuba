@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
 use percent_encoding::{NON_ALPHANUMERIC, percent_decode_str, percent_encode};
 use quick_xml::Reader;
+use quick_xml::escape::unescape;
 use quick_xml::events::Event;
 use reqwest::blocking::RequestBuilder;
 use reqwest::{Method, Url};
 use secrecy::{ExposeSecret, SecretString};
-use std::borrow::Cow;
 use std::io::{Read, pipe};
 use std::sync::Arc;
 use std::thread;
@@ -100,9 +100,9 @@ pub fn make_url_from_abs(abs_path: &UNPath<Abs>) -> Result<Url, ParseError> {
     Url::parse(&path)
 }
 
-/// Make rel path from encoded str.
-pub fn make_rel_from_str(cow_str: Cow<str>) -> Result<UNPath<Rel>, NPathError> {
-    let decoded_path = percent_decode_str(&cow_str).decode_utf8_lossy().to_string();
+/// Make rel path from encoded str path.
+pub fn make_rel_path_from_str_path(path: &str) -> Result<UNPath<Rel>, NPathError> {
+    let decoded_path = percent_decode_str(path).decode_utf8_lossy().to_string();
 
     // Path must be relative.
     let rel_path = decoded_path.trim_start_matches("/").to_string();
@@ -123,6 +123,7 @@ enum Context {
     Propstat,
     Prop,
     Resourcetype,
+    Collection,
     Getcontentlength,
     Creationdate,
     Getlastmodified,
@@ -203,6 +204,7 @@ impl WebDAVFS {
     ) -> Result<Vec<FSNode>, FSError> {
         let mut reader = Reader::from_str(xml);
         reader.config_mut().trim_text(true);
+        reader.config_mut().expand_empty_elements = true;
 
         let mut fs_nodes: Vec<FSNode> = Vec::new();
 
@@ -215,9 +217,7 @@ impl WebDAVFS {
         let mut size: Option<u64> = None;
         let mut created: Option<SystemTime> = None;
         let mut modified: Option<SystemTime> = None;
-
-        // We do not support multistat.
-        let mut response: bool = false;
+        let mut href_buf = String::new();
 
         while let Ok(event) = reader.read_event_into(&mut xml_buf) {
             match event {
@@ -228,16 +228,14 @@ impl WebDAVFS {
 
                     match local_name_ref {
                         b"response" if context.is_empty() => {
-                            if !response {
-                                response = true;
+                            entry_rel_path = None;
 
-                                entry_rel_path = None;
-
-                                context.push(Context::Response);
-                            }
+                            context.push(Context::Response);
                         }
                         b"href" if context.last() == Some(&Context::Response) => {
                             context.push(Context::Href);
+
+                            href_buf.clear();
                         }
                         b"propstat" if context.last() == Some(&Context::Response) => {
                             fs_metadata = None;
@@ -256,6 +254,11 @@ impl WebDAVFS {
                             is_dir = Some(false);
 
                             context.push(Context::Resourcetype);
+                        }
+                        b"collection" if context.last() == Some(&Context::Resourcetype) => {
+                            is_dir = Some(true);
+
+                            context.push(Context::Collection);
                         }
                         b"getcontentlength" if context.last() == Some(&Context::Prop) => {
                             context.push(Context::Getcontentlength);
@@ -313,6 +316,11 @@ impl WebDAVFS {
                         }
                         b"href" if context.last() == Some(&Context::Href) => {
                             context.pop();
+
+                            entry_rel_path =
+                                Some(make_rel_path_from_str_path(&href_buf).map_err(|err| {
+                                    FSError::MetaFailed(choose_path(abs_path, &None), err.into())
+                                })?);
                         }
                         b"propstat" if context.last() == Some(&Context::Propstat) => {
                             if let (Some(is_dir), Some(created), Some(modified)) =
@@ -340,6 +348,9 @@ impl WebDAVFS {
                         b"resourcetype" if context.last() == Some(&Context::Resourcetype) => {
                             context.pop();
                         }
+                        b"collection" if context.last() == Some(&Context::Collection) => {
+                            context.pop();
+                        }
                         b"getcontentlength"
                             if context.last() == Some(&Context::Getcontentlength) =>
                         {
@@ -354,29 +365,38 @@ impl WebDAVFS {
                         _ => {}
                     }
                 }
-                Event::Empty(ref element) => {
-                    let name = element.name();
-                    let local_name = name.local_name();
-                    let local_name_ref = local_name.as_ref();
+                Event::GeneralRef(value) => {
+                    if let Some(&Context::Href) = context.last() {
+                        match value.xml_content() {
+                            Ok(entity_content) => {
+                                // We need to reconstruct the entity for unescaping.
+                                let entity = format!("&{};", entity_content);
 
-                    match local_name_ref {
-                        b"resourcetype" if context.last() == Some(&Context::Prop) => {
-                            is_dir = Some(false);
+                                match unescape(entity.as_str()) {
+                                    Ok(unescaped) => {
+                                        href_buf.push_str(&unescaped);
+                                    }
+                                    Err(err) => {
+                                        return Err(FSError::MetaFailed(
+                                            choose_path(abs_path, &None),
+                                            err.into(),
+                                        ));
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                return Err(FSError::MetaFailed(
+                                    choose_path(abs_path, &None),
+                                    err.into(),
+                                ));
+                            }
                         }
-
-                        b"collection" if context.last() == Some(&Context::Resourcetype) => {
-                            is_dir = Some(true);
-                        }
-                        _ => {}
                     }
                 }
                 Event::Text(value) => match context.last() {
                     Some(&Context::Href) => match value.xml_content() {
                         Ok(xml_content) => {
-                            entry_rel_path =
-                                Some(make_rel_from_str(xml_content).map_err(|err| {
-                                    FSError::MetaFailed(choose_path(abs_path, &None), err.into())
-                                })?);
+                            href_buf.push_str(&xml_content);
                         }
                         Err(err) => {
                             return Err(FSError::MetaFailed(
