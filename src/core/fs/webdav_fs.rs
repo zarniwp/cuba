@@ -538,7 +538,7 @@ impl FS for WebDAVFS {
     }
 
     fn block_size(&self) -> FSBlockSize {
-        FSBlockSize::new(None, 512 * 1024, None)
+        FSBlockSize::new(None, 128 * 1024, None)
     }
 
     fn meta(&self, abs_path: &UNPath<Abs>) -> Result<FSNodeMetaData, FSError> {
