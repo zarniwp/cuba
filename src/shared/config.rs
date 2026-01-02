@@ -1,8 +1,28 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
+use crossbeam_channel::Sender;
 use serde::Deserialize;
 
+use crate::{send_error, shared::message::Message};
+
 use super::npath::{Abs, Dir, NPath, Rel};
+
+/// Load config from file.
+pub fn load_config_from_file(sender: Sender<Arc<dyn Message>>, path: &str) -> Option<Config> {
+    match std::fs::read_to_string(path) {
+        Ok(content) => match toml::from_str::<Config>(&content) {
+            Ok(config) => Some(config),
+            Err(err) => {
+                send_error!(sender, err);
+                None
+            }
+        },
+        Err(err) => {
+            send_error!(sender, err);
+            None
+        }
+    }
+}
 
 /// Defines a `Config`.
 #[derive(Debug, Deserialize)]

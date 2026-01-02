@@ -1,102 +1,136 @@
+use crate::shared::message::Info;
+use crate::shared::msg_receiver::MsgHandler;
+use crate::shared::npath::{Rel, UNPath};
 use console::Style;
-use crossbeam_channel::{Receiver, Sender, select, unbounded};
-use std::sync::Arc;
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
-
-use crate::shared::clean_message::CleanMessage;
-use crate::shared::message::{ErrorMessage, InfoMessage, Message, WarnMessage};
-use crate::shared::task_message::{TaskInfo, TaskMessage};
+use std::error::Error;
 
 /// Defines a `ConsoleOut`.
 ///
 /// Prints messages to the console.
 pub struct ConsoleOut {
-    receiver: Arc<Receiver<Arc<dyn Message>>>,
-    shutdown_sender: Option<Sender<()>>,
-    thread_handle: Option<JoinHandle<()>>,
+    green: Style,
+    yellow: Style,
+    red: Style,
 }
 
 /// Methods of `ConsoleOut`.
 impl ConsoleOut {
-    /// Creates a new of `ConsoleOut`. Takes a message receiver.
-    pub fn new(receiver: Arc<Receiver<Arc<dyn Message>>>) -> Self {
-        Self {
-            receiver,
-            shutdown_sender: None,
-            thread_handle: None,
-        }
+    /// Creates a new `ConsoleOut`.
+    pub fn new() -> Self {
+        let green = Style::new().green().bold();
+        let yellow = Style::new().yellow().bold();
+        let red = Style::new().red().bold();
+
+        Self { green, yellow, red }
+    }
+}
+
+/// Impl `Default` for `ConsoleOut`.
+impl Default for ConsoleOut {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Impls `MsgHandler` for `ConsoleOut`.
+impl MsgHandler for ConsoleOut {
+    /// Handles a `TaskInfo::Start` message.
+    fn task_start(
+        &self,
+        _thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
     }
 
-    /// Starts a thread that listens for messages and prints them to the console.
-    pub fn start(&mut self) {
-        let receiver = Arc::clone(&self.receiver);
-        let (shutdown_sender, shutdown_receiver) = unbounded();
-        self.shutdown_sender = Some(shutdown_sender);
-
-        self.thread_handle = Some(thread::spawn(move || {
-            let green = Style::new().green().bold();
-            let yellow = Style::new().yellow().bold();
-            let red = Style::new().red().bold();
-
-            loop {
-                select! {
-                    recv(receiver) -> msg => {
-                        match msg {
-                            Ok(message) => {
-                                if let Some(task_message) = message.as_ref().as_any().downcast_ref::<TaskMessage>() {
-                                    if let Some(info) = task_message.info() {
-                                        if let Some(task_info) = info.as_any().downcast_ref::<TaskInfo>() {
-                                            if task_info != &TaskInfo::Tick {
-                                                println!("{:?} : {}", task_message.rel_path, green.apply_to(info));
-                                            }
-                                        } else {
-                                            println!("{:?} : {}", task_message.rel_path, green.apply_to(info));
-                                        }
-                                    }
-                                    else if let Some(err) = task_message.err() {
-                                        println!("{:?} : {}", task_message.rel_path, red.apply_to(err));
-                                    }
-                                }
-                                else if let Some(clean_message) = message.as_ref().as_any().downcast_ref::<CleanMessage>() {
-                                    if let Some(info) = clean_message.info() {
-                                        println!("{:?} : {}", clean_message.rel_path, green.apply_to(info));
-                                    }
-                                    else if let Some(err) = clean_message.err() {
-                                        println!("{:?} : {}", clean_message.rel_path, red.apply_to(err));
-                                    }
-                                }
-                                else if let Some(info_message) = message.as_ref().as_any().downcast_ref::<InfoMessage>()
-                                    && let Some(info) = info_message.info() {
-                                        println!("{}", green.apply_to(info));
-                                    }
-                                else if let Some(warn_message) = message.as_ref().as_any().downcast_ref::<WarnMessage>()
-                                    && let Some(info) = warn_message.info() {
-                                        println!("{}", yellow.apply_to(info));
-                                    }
-                                else if let Some(error_message) = message.as_ref().as_any().downcast_ref::<ErrorMessage>()
-                                    && let Some(err) = error_message.err() {
-                                        println!("{}", red.apply_to(err));
-                                    }
-                            }
-                            Err(_) => break, // All senders dropped.
-                        }
-                    }
-                    recv(shutdown_receiver) -> _ => break, // Received shutdown signal.
-                }
-            }
-        }));
+    /// Handles a `TaskInfo::Transferring` message.
+    fn task_transferring(
+        &self,
+        _thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
     }
 
-    /// Signal the thread to stop and wait for it to finish.
-    pub fn stop(&mut self) {
-        if let Some(sender) = self.shutdown_sender.take() {
-            thread::sleep(Duration::from_millis(100)); // Lets wait a little bit to receiver pending msgs.
-            let _ = sender.send(()); // Signal shutdown.
-        }
+    /// Handles a `TaskInfo::Finished` message.
+    fn task_finished(
+        &self,
+        _thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
+    }
 
-        if let Some(handle) = self.thread_handle.take() {
-            let _ = handle.join();
-        }
+    /// Handles a `TaskInfo::Transferred` message.
+    fn task_transferred(
+        &self,
+        _thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
+    }
+
+    /// Handles a `TaskInfo::UpToDate` message.
+    fn task_up_to_date(
+        &self,
+        _thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
+    }
+
+    /// Handles a `TaskInfo::Verified` message.
+    fn task_verified(
+        &self,
+        _thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
+    }
+
+    /// Handles a `TaskMessage` with error.
+    fn task_error(
+        &self,
+        _thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        error: &(dyn Error + Send + Sync),
+    ) {
+        println!("{:?} : {}", rel_path, self.red.apply_to(error));
+    }
+
+    /// Handles a `CleanInfo::Ok` message.
+    fn clean_ok(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
+    }
+
+    /// Handles a `CleanInfo::Removed` message.
+    fn clean_removed(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        println!("{:?} : {}", rel_path, self.green.apply_to(info));
+    }
+
+    /// Handles a `CleanMessage` with error.
+    fn clean_error(&self, rel_path: &UNPath<Rel>, error: &(dyn Error + Send + Sync)) {
+        println!("{:?} : {}", rel_path, self.red.apply_to(error));
+    }
+
+    /// Handles a `InfoMessage`.
+    fn info(&self, info: &(dyn Info + Send + Sync)) {
+        println!("{}", self.green.apply_to(info));
+    }
+
+    /// Handles a `WarnMessage`.
+    fn warn(&self, warning: &(dyn Info + Send + Sync)) {
+        println!("{}", self.yellow.apply_to(warning));
+    }
+
+    /// Handles a `ErrorMessage`.
+    fn error(&self, error: &(dyn Error + Send + Sync)) {
+        println!("{}", self.red.apply_to(error));
     }
 }

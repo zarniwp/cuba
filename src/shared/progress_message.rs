@@ -47,7 +47,7 @@ pub struct ProgressMessage {
 
 /// Methods of `ProgressMessage`.
 impl ProgressMessage {
-    /// Creates a new `ProgressTicks`.
+    /// Creates a new `ProgressMessage`.
     pub fn new(info: Arc<dyn Info + Send + Sync>, ticks: u64) -> Self {
         ProgressMessage { info, ticks }
     }

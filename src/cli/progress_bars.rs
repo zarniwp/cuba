@@ -1,30 +1,27 @@
 use console::Style;
-use crossbeam_channel::{Receiver, Sender, select, unbounded};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::error::Error;
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
-use crate::shared::clean_message::CleanMessage;
-use crate::shared::message::Message;
-use crate::shared::progress_message::{ProgressInfo, ProgressMessage};
-use crate::shared::task_message::{TaskInfo, TaskMessage};
+use crate::shared::message::Info;
+use crate::shared::msg_receiver::MsgHandler;
+use crate::shared::npath::{Rel, UNPath};
 
 /// Visualizes messages as progress bars.
 pub struct ProgressBars {
-    receiver: Arc<Receiver<Arc<dyn Message>>>,
-    shutdown_sender: Option<Sender<()>>,
     threads: usize,
     _multi_progress: MultiProgress,
     progress_bars: Arc<Vec<Mutex<ProgressBar>>>,
     error_occurred: Arc<Vec<Mutex<bool>>>,
-    thread_handle: Option<JoinHandle<()>>,
+    progress_bar_index: Mutex<usize>,
+    green: Style,
+    red: Style,
 }
 
 /// Methods of `ProgressBars`.
 impl ProgressBars {
-    /// Creates a new `ProgressBars`. Takes a message receiver.    
-    pub fn new(receiver: Arc<Receiver<Arc<dyn Message>>>, threads: usize) -> Self {
+    /// Creates a new `ProgressBars`.  
+    pub fn new(threads: usize) -> Self {
         let mut progress_bars = Vec::new();
         let mut error_occurred = Vec::new();
         let multi_progress = MultiProgress::new();
@@ -51,123 +48,222 @@ impl ProgressBars {
         progress_bars.push(Mutex::new(total_bar));
 
         Self {
-            receiver,
-            shutdown_sender: None,
             threads,
             _multi_progress: multi_progress,
             progress_bars: Arc::new(progress_bars),
             error_occurred: Arc::new(error_occurred),
-            thread_handle: None,
+            progress_bar_index: Mutex::new(0),
+            green: Style::new().green().bold(),
+            red: Style::new().red().bold(),
         }
     }
 
-    /// Starts a thread that listens for messages and visualizes them as progress bars.
-    pub fn start(&mut self) {
-        let progress_bars = Arc::clone(&self.progress_bars);
-        let error_occurred = Arc::clone(&self.error_occurred);
-        let total_index = self.threads;
+    // Handles a task info.
+    fn handle_task_info(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        if let Some(bar_mutex) = self.progress_bars.get(thread_number) {
+            let bar = bar_mutex.lock().unwrap();
 
-        let receiver = Arc::clone(&self.receiver);
-        let (shutdown_sender, shutdown_receiver) = unbounded();
-        self.shutdown_sender = Some(shutdown_sender);
+            if let Some(err_mutex) = self.error_occurred.get(thread_number) {
+                let error_flag = err_mutex.lock().unwrap();
 
-        let progress_bar_index: Mutex<usize> = Mutex::new(0);
-
-        self.thread_handle = Some(thread::spawn(move || {
-            let red = Style::new().red().bold();
-            let green = Style::new().green().bold();
-
-            loop {
-                select! {
-                    recv(receiver) -> msg => {
-                        match msg {
-                            Ok(message) => {
-                                if let Some(task_message) = message.as_ref().as_any().downcast_ref::<TaskMessage>() {
-                                    if let Some(bar_mutex) = progress_bars.get(task_message.thread_number) {
-                                        let bar = bar_mutex.lock().unwrap();
-                                        if let Some(err_mutex) = error_occurred.get(task_message.thread_number) {
-                                            let mut error_flag = err_mutex.lock().unwrap();
-
-                                            if !*error_flag {
-                                                if let Some(err) = task_message.err() {
-                                                    bar.set_message(format!("{:?} : {}", task_message.rel_path, red.apply_to(err)));
-                                                    *error_flag = true;
-                                                }
-
-                                                if let Some(info) = task_message.info() {
-                                                    if let Some(task_info) = info.as_any().downcast_ref::<TaskInfo>() {
-                                                        match task_info {
-                                                            TaskInfo::Tick => bar.tick(),
-                                                            TaskInfo::Finished => {
-                                                                bar.set_message(format!("{:?} : {}", task_message.rel_path, green.apply_to(info)));
-                                                            },
-                                                            _ => {
-                                                                bar.set_message(format!("{:?} : {}", task_message.rel_path, green.apply_to(info)));
-                                                            }
-                                                        }
-                                                    } else {
-                                                        bar.set_message(format!("{:?} : {}", task_message.rel_path, green.apply_to(info)));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                else if let Some(clean_message) = message.as_ref().as_any().downcast_ref::<CleanMessage>() {
-                                    let pb_index: usize;
-
-                                    {
-                                        let mut index = progress_bar_index.lock().unwrap();
-                                        pb_index = *index;
-                                        *index = (*index + 1) % total_index;
-                                    }
-
-                                    if let Some(bar_mutex) = progress_bars.get(pb_index) {
-                                        let bar = bar_mutex.lock().unwrap();
-                                        if let Some(err) = clean_message.err() {
-                                            bar.set_message(format!("{:?} : {}", clean_message.rel_path, red.apply_to(err)));
-                                        }
-                                        if let Some(info) = clean_message.info() {
-                                            bar.set_message(format!("{:?} : {}", clean_message.rel_path, green.apply_to(info)));
-                                        }
-                                    }
-                                }
-                                else if let Some(progress_message) = message.as_ref().as_any().downcast_ref::<ProgressMessage>()
-                                    && let Some(total_bar_mutex) = progress_bars.get(total_index)
-                                        && let Some(info) = progress_message.info()
-                                            && let Some(progress_info) = info.as_any().downcast_ref::<ProgressInfo>() {
-                                                match progress_info {
-                                                    ProgressInfo::Ticks => {
-                                                        total_bar_mutex.lock().unwrap().inc(progress_message.ticks);
-                                                    }
-                                                    ProgressInfo::Duration => {
-                                                        total_bar_mutex.lock().unwrap().set_length(progress_message.ticks);
-                                                    }
-                                                }
-                                            }
-                            },
-                            Err(_) => break, // channel closed
-                        }
-                    },
-                    recv(shutdown_receiver) -> _ => break, // shutdown requested
+                if !*error_flag {
+                    bar.set_message(format!("{:?} : {}", rel_path, self.green.apply_to(info)));
                 }
             }
-        }));
+        }
     }
 
-    /// Signal the thread to stop and wait for it to finish.
-    pub fn stop(&mut self) {
-        if let Some(sender) = self.shutdown_sender.take() {
-            thread::sleep(Duration::from_millis(100)); // Lets wait a little bit to receiver pending messages.
-            let _ = sender.send(()); // signal shutdown
+    /// Handles a task error.
+    fn handle_task_error(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        error: &(dyn Error + Send + Sync),
+    ) {
+        if let Some(bar_mutex) = self.progress_bars.get(thread_number) {
+            let bar = bar_mutex.lock().unwrap();
+
+            if let Some(err_mutex) = self.error_occurred.get(thread_number) {
+                let mut error_flag = err_mutex.lock().unwrap();
+
+                if !*error_flag {
+                    bar.set_message(format!("{:?} : {}", rel_path, self.red.apply_to(error)));
+                    *error_flag = true;
+                }
+            }
+        }
+    }
+
+    /// Handles a clean info.
+    fn handle_clean_info(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        let pb_index: usize;
+
+        {
+            let mut index = self.progress_bar_index.lock().unwrap();
+            pb_index = *index;
+            *index = (*index + 1) % self.threads;
         }
 
-        if let Some(handle) = self.thread_handle.take() {
-            let _ = handle.join();
+        if let Some(bar_mutex) = self.progress_bars.get(pb_index) {
+            let bar = bar_mutex.lock().unwrap();
+            bar.set_message(format!("{:?} : {}", rel_path, self.green.apply_to(info)));
+        }
+    }
+
+    /// Handles a clean error.
+    fn handle_clean_error(&self, rel_path: &UNPath<Rel>, error: &(dyn Error + Send + Sync)) {
+        let pb_index: usize;
+
+        {
+            let mut index = self.progress_bar_index.lock().unwrap();
+            pb_index = *index;
+            *index = (*index + 1) % self.threads;
         }
 
+        if let Some(bar_mutex) = self.progress_bars.get(pb_index) {
+            let bar = bar_mutex.lock().unwrap();
+            bar.set_message(format!("{:?} : {}", rel_path, self.red.apply_to(error)));
+        }
+    }
+}
+
+/// Impls `MsgHandler` for `ProgressBars`.
+impl MsgHandler for ProgressBars {
+    /// Called when the `MsgHandler` has started.
+    fn started(&self) {
+        let mut index = self.progress_bar_index.lock().unwrap();
+        *index = 0;
+    }
+
+    /// Called after the `MsgReceiver` has stopped.
+    fn stopped(&self) {
         for bar_mutex in self.progress_bars.iter() {
             bar_mutex.lock().unwrap().finish();
         }
     }
+
+    /// Handles a `TaskInfo::Start` message.
+    fn task_start(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        self.handle_task_info(thread_number, rel_path, info);
+    }
+
+    /// Handles a `TaskInfo::Transferring` message.
+    fn task_transferring(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        self.handle_task_info(thread_number, rel_path, info);
+    }
+
+    /// Handles a `TaskInfo::Finished` message.
+    fn task_finished(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        self.handle_task_info(thread_number, rel_path, info);
+    }
+
+    /// Handles a `TaskInfo::Transferred` message.
+    fn task_transferred(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        self.handle_task_info(thread_number, rel_path, info);
+    }
+
+    /// Handles a `TaskInfo::Tick` message.
+    fn task_tick(
+        &self,
+        thread_number: usize,
+        _rel_path: &UNPath<Rel>,
+        _info: &(dyn Info + Send + Sync),
+    ) {
+        if let Some(bar_mutex) = self.progress_bars.get(thread_number) {
+            bar_mutex.lock().unwrap().tick();
+        }
+    }
+
+    /// Handles a `TaskInfo::UpToDate` message.
+    fn task_up_to_date(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        self.handle_task_info(thread_number, rel_path, info);
+    }
+
+    /// Handles a `TaskInfo::Verified` message.
+    fn task_verified(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        info: &(dyn Info + Send + Sync),
+    ) {
+        self.handle_task_info(thread_number, rel_path, info);
+    }
+
+    /// Handles a `TaskMessage` with error.
+    fn task_error(
+        &self,
+        thread_number: usize,
+        rel_path: &UNPath<Rel>,
+        error: &(dyn Error + Send + Sync),
+    ) {
+        self.handle_task_error(thread_number, rel_path, error);
+    }
+
+    /// Handles a `ProgressInfo::Ticks` message.
+    fn progress_ticks(&self, ticks: u64, _info: &(dyn Info + Send + Sync)) {
+        if let Some(total_bar_mutex) = self.progress_bars.get(self.threads) {
+            total_bar_mutex.lock().unwrap().inc(ticks);
+        }
+    }
+
+    /// Handles a `ProgressInfo::Duration` message.
+    fn progress_duration(&self, ticks: u64, _info: &(dyn Info + Send + Sync)) {
+        if let Some(total_bar_mutex) = self.progress_bars.get(self.threads) {
+            total_bar_mutex.lock().unwrap().set_length(ticks);
+        }
+    }
+
+    /// Handles a `CleanInfo::Ok` message.
+    fn clean_ok(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        self.handle_clean_info(rel_path, info);
+    }
+
+    /// Handles a `CleanInfo::Removed` message.
+    fn clean_removed(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        self.handle_clean_info(rel_path, info);
+    }
+
+    /// Handles a `CleanMessage` with error.
+    fn clean_error(&self, rel_path: &UNPath<Rel>, error: &(dyn Error + Send + Sync)) {
+        self.handle_clean_error(rel_path, error);
+    }
+
+    /// Handles a `InfoMessage`.
+    fn info(&self, _info: &(dyn Info + Send + Sync)) {}
+
+    /// Handles a `WarnMessage`.
+    fn warn(&self, _warning: &(dyn Info + Send + Sync)) {}
+
+    /// Handles a `ErrorMessage`.
+    fn error(&self, _error: &(dyn Error + Send + Sync)) {}
 }

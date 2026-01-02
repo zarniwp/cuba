@@ -2,11 +2,8 @@ use std::{
     any::Any,
     error::Error,
     fmt::{self, Display, Formatter},
-    sync::{Arc, Mutex},
-    thread::{self, JoinHandle},
+    sync::Arc,
 };
-
-use crossbeam_channel::{Receiver, Sender, unbounded};
 
 /// Defines a trait for an `Info`.
 pub trait Info: fmt::Debug + fmt::Display + Send + Sync {
@@ -267,73 +264,4 @@ macro_rules! send_error {
         let msg = Arc::new(ErrorMessage::new(Arc::new($err)));
         $sender.send(msg).unwrap();
     }};
-}
-
-/// Defines a `MsgDispatcher`.
-///
-/// Sends messages from a source to all subscribers.
-pub struct MsgDispatcher<T: Send + Sync + Clone + 'static> {
-    source: Arc<Receiver<T>>,
-    receivers: Arc<Mutex<Vec<Sender<T>>>>,
-    shutdown_sender: Option<Sender<()>>,
-    thread_handle: Option<JoinHandle<()>>,
-}
-
-/// Methods of `MsgDispatcher`.
-impl<T: Send + Sync + Clone + 'static> MsgDispatcher<T> {
-    /// Creates a `MsgDispatcher`.
-    /// Receives messages from source and sends them to the
-    /// subscribed receivers.
-    pub fn new(source: Arc<Receiver<T>>) -> Self {
-        Self {
-            source,
-            receivers: Arc::new(Mutex::new(Vec::new())),
-            shutdown_sender: None,
-            thread_handle: None,
-        }
-    }
-
-    /// Returns a subscribed message receiver.
-    pub fn subscribe(&self) -> Receiver<T> {
-        let (sender, receiver) = unbounded();
-        self.receivers.lock().unwrap().push(sender);
-        receiver
-    }
-
-    /// Starts the `MsgDispatcher`.
-    pub fn start(&mut self) {
-        let source = Arc::clone(&self.source);
-
-        let receivers = Arc::clone(&self.receivers);
-        let (shutdown_sender, shutdown_receiver) = unbounded();
-        self.shutdown_sender = Some(shutdown_sender);
-
-        self.thread_handle = Some(thread::spawn(move || {
-            loop {
-                crossbeam_channel::select! {
-                    recv(source) -> msg => {
-                        match msg {
-                            Ok(value) => {
-                                let mut lock = receivers.lock().unwrap();
-                                lock.retain(|s| s.send(value.clone()).is_ok());
-                            }
-                            Err(_) => break, // source closed.
-                        }
-                    }
-                    recv(shutdown_receiver) -> _ => break,
-                }
-            }
-        }));
-    }
-
-    /// Stops the `MsgDispatcher`.
-    pub fn stop(&mut self) {
-        if let Some(sender) = self.shutdown_sender.take() {
-            let _ = sender.send(()); // signal shutdown.
-        }
-
-        if let Some(handle) = self.thread_handle.take() {
-            let _ = handle.join(); // Wait for thread to finish.
-        }
-    }
 }

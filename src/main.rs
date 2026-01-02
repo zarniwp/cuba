@@ -12,28 +12,32 @@ use std::sync::Arc;
 use std::{fs, io};
 
 use crate::core::api::Cuba;
-use crate::shared::config::{Config, EXAMPLE_CONFIG};
+use crate::shared::config::{EXAMPLE_CONFIG, load_config_from_file};
+use crate::shared::message::Message;
 use crate::shared::message::StringError;
-use crate::shared::message::{Message, MsgDispatcher};
+use crate::shared::msg_dispatcher::MsgDispatcher;
+use crate::shared::msg_receiver::MsgReceiver;
 
 use crate::cli::cli_cmds::{
     Cli, ConfigCommands, ConfigExampleCommands, MainCommands, PasswordCommands,
 };
 use crate::cli::console_out::ConsoleOut;
-use crate::cli::file_logger::Log;
-use crate::cli::file_logger::LogBuilder;
+use crate::cli::msg_file_logger::MsgFileLoggerBuilder;
 use crate::cli::progress_bars::ProgressBars;
 
-/// A macro the subscribes the `Log` to the `MsgDispatcher`.
+/// A macro the subscribes the `MsgFileLogger` to the `MsgDispatcher`.
 macro_rules! use_logger {
     ($msg_logger:ident, $msg_dispatcher:expr) => {{
-        let logger_receiver = $msg_dispatcher.subscribe();
-        let logger = LogBuilder::new(Arc::new(logger_receiver))
+        let ch_msg_receiver = $msg_dispatcher.subscribe();
+
+        let msg_file_logger = MsgFileLoggerBuilder::new()
             .add_log_file(vec![log::Level::Info], "cuba.info.log")
             .add_log_file(vec![log::Level::Warn], "cuba.warn.log")
             .add_log_file(vec![log::Level::Error], "cuba.error.log")
             .build();
-        $msg_logger = Some(logger);
+
+        let msg_receiver = MsgReceiver::new(ch_msg_receiver, Arc::new(msg_file_logger));
+        $msg_logger = Some(msg_receiver);
 
         if let Some(logger) = $msg_logger.as_mut() {
             logger.start();
@@ -41,7 +45,7 @@ macro_rules! use_logger {
     }};
 }
 
-/// A macro the unsubscribes the `Log` from the `MsgDispatcher`.
+/// A macro the unsubscribes the `MsgFileLogger` from the `MsgDispatcher`.
 macro_rules! unuse_logger {
     ($msg_logger:ident, $msg_dispatcher:expr) => {{
         if let Some(mut logger) = $msg_logger.take() {
@@ -53,8 +57,10 @@ macro_rules! unuse_logger {
 /// A macro the subscribes the `ConsoleOut` to the `MsgDispatcher`.
 macro_rules! use_console_out {
     ($msg_console_out:ident, $msg_dispatcher:expr) => {{
-        let console_out_receiver = $msg_dispatcher.subscribe();
-        $msg_console_out = Some(ConsoleOut::new(Arc::new(console_out_receiver)));
+        let ch_msg_receiver = $msg_dispatcher.subscribe();
+
+        let msg_receiver = MsgReceiver::new(ch_msg_receiver, Arc::new(ConsoleOut::new()));
+        $msg_console_out = Some(msg_receiver);
 
         if let Some(console_out) = $msg_console_out.as_mut() {
             console_out.start();
@@ -74,8 +80,11 @@ macro_rules! unuse_console_out {
 /// A macro the subscribes the `ProgressBars` to the `MsgDispatcher`.
 macro_rules! use_progress {
     ($msg_progress_bars:ident, $msg_dispatcher:expr, $threads:expr) => {{
-        let progress_receiver = $msg_dispatcher.subscribe();
-        $msg_progress_bars = Some(ProgressBars::new(Arc::new(progress_receiver), $threads));
+        let ch_msg_receiver = $msg_dispatcher.subscribe();
+
+        let msg_receiver = MsgReceiver::new(ch_msg_receiver, Arc::new(ProgressBars::new($threads)));
+
+        $msg_progress_bars = Some(msg_receiver);
 
         if let Some(progress) = $msg_progress_bars.as_mut() {
             progress.start();
@@ -161,37 +170,19 @@ pub fn write_example_config(sender: Sender<Arc<dyn Message>>) {
     }
 }
 
-/// Load config from disk.
-pub fn load_config_from_file(sender: Sender<Arc<dyn Message>>, path: &str) -> Option<Config> {
-    match std::fs::read_to_string(path) {
-        Ok(content) => match toml::from_str::<Config>(&content) {
-            Ok(config) => Some(config),
-            Err(err) => {
-                send_error!(sender, err);
-                None
-            }
-        },
-        Err(err) => {
-            send_error!(sender, err);
-            None
-        }
-    }
-}
-
 fn main() {
     let (sender, receiver) = unbounded::<Arc<dyn Message>>();
-    let arc_receiver = Arc::new(receiver);
 
-    let mut msg_dispatcher = MsgDispatcher::new(arc_receiver);
+    let mut msg_dispatcher = MsgDispatcher::new(receiver.clone());
 
     msg_dispatcher.start();
 
     #[allow(unused_assignments)]
-    let mut msg_console_out: Option<ConsoleOut> = None;
+    let mut msg_console_out: Option<MsgReceiver> = None;
     #[allow(unused_assignments)]
-    let mut msg_logger: Option<Log> = None;
+    let mut msg_logger: Option<MsgReceiver> = None;
     #[allow(unused_assignments)]
-    let mut msg_progress_bars: Option<ProgressBars> = None;
+    let mut msg_progress_bars: Option<MsgReceiver> = None;
 
     use_logger!(msg_logger, msg_dispatcher);
     use_console_out!(msg_console_out, msg_dispatcher);
