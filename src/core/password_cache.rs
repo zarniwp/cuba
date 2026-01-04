@@ -43,7 +43,7 @@ impl PasswordCache {
     }
 }
 
-/// Impl `Drop` for `PasswordCache`.
+/// Impl of `Drop` for `PasswordCache`.
 impl Drop for PasswordCache {
     fn drop(&mut self) {
         // Ensures zeroing even on panic.
@@ -51,7 +51,7 @@ impl Drop for PasswordCache {
     }
 }
 
-/// Impl `Default` for `PasswordCache`.
+/// Impl of `Default` for `PasswordCache`.
 impl Default for PasswordCache {
     fn default() -> Self {
         Self::new()

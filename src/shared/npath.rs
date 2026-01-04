@@ -17,7 +17,7 @@ static UNIX_ROOT: Lazy<Regex> = Lazy::new(|| Regex::new(r"^/").unwrap());
 static WINDOWS_DRIVE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z]:").unwrap());
 static URL_SCHEME: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9+\-.]*:/").unwrap());
 
-/// Define a `NPathRoot`.
+/// Defines a `NPathRoot`.
 #[derive(Error, Debug)]
 pub enum NPathRoot {
     Unix,
@@ -26,7 +26,7 @@ pub enum NPathRoot {
     Invalid,
 }
 
-/// Impls for `NPathRoot`.
+/// Methods of `NPathRoot`.
 impl NPathRoot {
     /// Returns the `NPathRoot` content.
     pub fn unicode(&self) -> &str {
@@ -39,7 +39,7 @@ impl NPathRoot {
     }
 }
 
-/// Impl `Display` for `NPathRoot`.
+/// Impl of `Display` for `NPathRoot`.
 impl fmt::Display for NPathRoot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.unicode())
@@ -53,7 +53,7 @@ pub enum NPathComponent {
     Normal(String),
 }
 
-/// Impls for `NPathComponent`
+/// Methods of `NPathComponent`
 impl NPathComponent {
     /// Returns the `NPathComponent` unicode.
     pub fn unicode(&self) -> &str {
@@ -64,7 +64,7 @@ impl NPathComponent {
     }
 }
 
-/// Impl `Display` for `NPathComponent`.
+/// Impl of `Display` for `NPathComponent`.
 impl fmt::Display for NPathComponent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.unicode())
@@ -390,7 +390,7 @@ impl<K> Hash for UNPath<K> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             UNPath::File(file_path) => {
-                0u8.hash(state); // variant discriminant
+                0u8.hash(state); // variant discriminant.
                 file_path.hash(state);
             }
             UNPath::Dir(dir_path) => {
@@ -421,7 +421,7 @@ pub struct NPath<K, T> {
     _marker: PhantomData<(K, T)>,
 }
 
-/// Impl `TryFrom` for an absolute `NPath`.
+/// Impl of `TryFrom` for an absolute `NPath`.
 impl<T> TryFrom<&str> for NPath<Abs, T> {
     type Error = NPathError;
 
@@ -436,7 +436,7 @@ impl<T> TryFrom<&str> for NPath<Abs, T> {
     }
 }
 
-/// Impl `TryFrom` for an absolute `NPath`.
+/// Impl of `TryFrom` for an absolute `NPath`.
 impl<T> TryFrom<String> for NPath<Abs, T> {
     type Error = NPathError;
 
@@ -451,7 +451,7 @@ impl<T> TryFrom<String> for NPath<Abs, T> {
     }
 }
 
-/// Impl `TryFrom` for a relative `NPath`.
+/// Impl of `TryFrom` for a relative `NPath`.
 impl<T> TryFrom<&str> for NPath<Rel, T> {
     type Error = NPathError;
 
@@ -466,7 +466,7 @@ impl<T> TryFrom<&str> for NPath<Rel, T> {
     }
 }
 
-/// Impl `TryFrom` for a relative `NPath`.
+/// Impl of `TryFrom` for a relative `NPath`.
 impl<T> TryFrom<String> for NPath<Rel, T> {
     type Error = NPathError;
 
@@ -495,7 +495,7 @@ impl<K, T> fmt::Display for NPath<K, T> {
     }
 }
 
-/// Methods for `NPath`.
+/// Methods of `NPath`.
 impl<K, T> NPath<K, T> {
     /// Create a new `NPath`, only for internal use.
     fn from_unicode(path_str: &str) -> Self {

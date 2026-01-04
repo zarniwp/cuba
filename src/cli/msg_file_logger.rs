@@ -70,7 +70,7 @@ impl MsgLogFileWriter {
     }
 }
 
-/// Impls of `LogWriter` for `MsgLogFileWriter`.
+/// Impl of `LogWriter` for `MsgLogFileWriter`.
 impl LogWriter for MsgLogFileWriter {
     /// Write the log record to the log files.
     fn write(&self, _now: &mut DeferredNow, record: &Record) -> std::io::Result<()> {
@@ -131,7 +131,7 @@ impl MsgFileLoggerBuilder {
     }
 }
 
-/// Impl `Default` for `MsgFileLoggerBuilder`.
+/// Impl of `Default` for `MsgFileLoggerBuilder`.
 impl Default for MsgFileLoggerBuilder {
     fn default() -> Self {
         Self::new()
@@ -146,7 +146,7 @@ impl Default for MsgFileLoggerBuilder {
 /// Only interesting messages should be logged.
 pub struct MsgFileLogger {}
 
-/// Impl `MsgHandler` for `MsgFileLogger`.
+/// Impl of `MsgHandler` for `MsgFileLogger`.
 impl MsgHandler for MsgFileLogger {
     /// Handles a `TaskInfo::Transferred` message.
     fn task_transferred(

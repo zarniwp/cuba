@@ -75,7 +75,7 @@ impl FSConnection {
     }
 }
 
-/// Impl `Clone` for `FSConnection`.
+/// Impl of `Clone` for `FSConnection`.
 impl Clone for FSConnection {
     /// Clone the FSConnection, shares the FSMounts.
     fn clone(&self) -> Self {

@@ -116,7 +116,7 @@ impl MaskedFlags {
     }
 }
 
-/// Impl `Default` for `MaskedFlags`.
+/// Impl of `Default` for `MaskedFlags`.
 impl Default for MaskedFlags {
     fn default() -> Self {
         Self::new()
@@ -187,7 +187,7 @@ pub struct TransferredNodes(
     #[serde_as(as = "HashMap<DisplayFromStr, _>")] pub HashMap<UNPath<Rel>, TransferredNode>,
 );
 
-/// Impl `Default` for `TransferredNodes`.
+/// Impl of `Default` for `TransferredNodes`.
 impl Default for TransferredNodes {
     fn default() -> Self {
         Self::new()
@@ -250,7 +250,7 @@ impl TransferredNodes {
     }
 }
 
-/// Impl `Deref` for `TransferredNodes`.
+/// Impl of `Deref` for `TransferredNodes`.
 impl Deref for TransferredNodes {
     type Target = HashMap<UNPath<Rel>, TransferredNode>;
 
@@ -259,7 +259,7 @@ impl Deref for TransferredNodes {
     }
 }
 
-/// Impl `DerefMut` for `TransferredNodes`.
+/// Impl of `DerefMut` for `TransferredNodes`.
 impl DerefMut for TransferredNodes {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -281,7 +281,7 @@ pub struct ViewMut<'a, T> {
 pub struct Backup;
 pub struct Restore;
 
-/// Methods for view with backup type.
+/// Methods of view with backup type.
 impl<'a> View<'a, Backup> {
     /// Returns the transferred node for the given rel src node.
     pub fn get_node_for_src(&self, src_rel_path: &UNPath<Rel>) -> Option<&TransferredNode> {
@@ -299,7 +299,7 @@ impl<'a> View<'a, Backup> {
     }
 }
 
-/// Methods for mut view with backup type.
+/// Methods of mut view with backup type.
 impl<'a> ViewMut<'a, Backup> {
     /// Sets a transferred node.
     pub fn set_transferred_node(
@@ -319,7 +319,7 @@ impl<'a> ViewMut<'a, Backup> {
     }
 }
 
-/// Methods for view with restore type.
+/// Methods of view with restore type.
 impl<'a> View<'a, Restore> {
     /// Returns the transferred node for the given rel src node.
     pub fn get_node_for_src(&self, src_rel_path: &UNPath<Rel>) -> Option<&TransferredNode> {
@@ -342,7 +342,7 @@ impl<'a> View<'a, Restore> {
     }
 }
 
-/// Methods for mut view with restore type.
+/// Methods of mut view with restore type.
 impl<'a> ViewMut<'a, Restore> {
     /// Sets a transferred node.
     pub fn set_transferred_node(

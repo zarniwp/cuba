@@ -9,7 +9,7 @@ pub struct GlobMatcher {
     globset: GlobSet,
 }
 
-/// Methods for `GlobMatcher`
+/// Methods of `GlobMatcher`
 impl GlobMatcher {
     /// Creates a new `GlobMatcher`
     pub fn new(patterns: &Vec<String>) -> Result<Self, globset::Error> {
@@ -50,7 +50,7 @@ pub struct IncludeMatcher {
     globset: GlobSet,
 }
 
-/// Methods for `IncludeMatcher`
+/// Methods of `IncludeMatcher`
 impl IncludeMatcher {
     /// Returns true if a pattern matches `path`
     pub fn is_match(&self, path: &UNPath<Rel>) -> bool {
@@ -73,7 +73,7 @@ pub struct ExcludeMatcher {
     globset: GlobSet,
 }
 
-/// Methods for `ExcludeMatcher`
+/// Methods of `ExcludeMatcher`
 impl ExcludeMatcher {
     /// Returns true if a pattern matches `path`    
     pub fn is_match(&self, path: &UNPath<Rel>) -> bool {

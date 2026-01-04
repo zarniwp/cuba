@@ -25,14 +25,14 @@ impl ConsoleOut {
     }
 }
 
-/// Impl `Default` for `ConsoleOut`.
+/// Impl of `Default` for `ConsoleOut`.
 impl Default for ConsoleOut {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Impls `MsgHandler` for `ConsoleOut`.
+/// Impl of `MsgHandler` for `ConsoleOut`.
 impl MsgHandler for ConsoleOut {
     /// Handles a `TaskInfo::Start` message.
     fn task_start(

@@ -132,7 +132,7 @@ impl ProgressBars {
     }
 }
 
-/// Impls `MsgHandler` for `ProgressBars`.
+/// Impl of `MsgHandler` for `ProgressBars`.
 impl MsgHandler for ProgressBars {
     /// Called when the `MsgHandler` has started.
     fn started(&self) {
