@@ -314,6 +314,14 @@ impl UNPath<Abs> {
             UNPath::Dir(dir_path) => Box::new(dir_path.components()),
         }
     }
+
+    /// Returns the `UNPath<Abs>` as compact unicode string.
+    pub fn compact_unicode(&self) -> String {
+        match self {
+            UNPath::File(file_path) => file_path.compact_unicode(),
+            UNPath::Dir(dir_path) => dir_path.compact_unicode(),
+         }
+    }
 }
 
 /// Methods of a relative `UNPath`.
@@ -324,6 +332,15 @@ impl UNPath<Rel> {
             UNPath::File(file_path) => Box::new(file_path.components()),
             UNPath::Dir(dir_path) => Box::new(dir_path.components()),
         }
+    }
+
+    
+    /// Returns the `UNPath<Abs>` as compact unicode string.
+    pub fn compact_unicode(&self) -> String {
+        match self {
+            UNPath::File(file_path) => file_path.compact_unicode(),
+            UNPath::Dir(dir_path) => dir_path.compact_unicode(),
+         }
     }
 }
 
@@ -646,6 +663,21 @@ impl<T> NPath<Abs, T> {
             Err(err) => Err(err),
         }
     }
+
+    /// Returns the `NPath<Abs>` as compact unicode string.
+    pub fn compact_unicode(&self) -> String {
+        let components: Vec<_> = self.components().collect();
+
+        if components.len() > 3 {
+            format!(
+                "{}/.../{}",
+                components.first().unwrap(),
+                components.last().unwrap()
+            )
+        } else {
+            self.to_unicode().to_owned()
+        }
+    }    
 }
 
 impl<T> NPath<Rel, T> {
@@ -654,6 +686,21 @@ impl<T> NPath<Rel, T> {
         self.unicode
             .split("/")
             .map(|segment| NPathComponent::Normal(segment.into()))
+    }
+
+    /// Returns the `NPath<Rel>` as compact unicode string.
+    pub fn compact_unicode(&self) -> String {
+        let components: Vec<_> = self.components().collect();
+
+        if components.len() > 3 {
+            format!(
+                "{}/.../{}",
+                components.first().unwrap(),
+                components.last().unwrap()
+            )
+        } else {
+            self.to_unicode().to_owned()
+        }
     }
 }
 
