@@ -320,7 +320,7 @@ impl UNPath<Abs> {
         match self {
             UNPath::File(file_path) => file_path.compact_unicode(),
             UNPath::Dir(dir_path) => dir_path.compact_unicode(),
-         }
+        }
     }
 }
 
@@ -334,13 +334,12 @@ impl UNPath<Rel> {
         }
     }
 
-    
     /// Returns the `UNPath<Abs>` as compact unicode string.
     pub fn compact_unicode(&self) -> String {
         match self {
             UNPath::File(file_path) => file_path.compact_unicode(),
             UNPath::Dir(dir_path) => dir_path.compact_unicode(),
-         }
+        }
     }
 }
 
@@ -677,7 +676,7 @@ impl<T> NPath<Abs, T> {
         } else {
             self.to_unicode().to_owned()
         }
-    }    
+    }
 }
 
 impl<T> NPath<Rel, T> {
