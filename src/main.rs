@@ -11,7 +11,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
 
-use crate::core::api::Cuba;
+use crate::core::api::{Cuba, RunHandle};
 use crate::shared::config::{EXAMPLE_CONFIG, load_config_from_file};
 use crate::shared::message::Message;
 use crate::shared::message::StringError;
@@ -205,7 +205,7 @@ fn main() {
                         unuse_console_out!(msg_console_out, msg_dispatcher);
                         use_progress!(msg_progress_bars, msg_dispatcher, config.transfer_threads);
 
-                        cuba.run_backup(backup);
+                        cuba.run_backup(RunHandle::default(), backup);
 
                         unuse_progress!(msg_progress_bars, msg_dispatcher);
                         use_console_out!(msg_console_out, msg_dispatcher);
@@ -218,7 +218,7 @@ fn main() {
                         unuse_console_out!(msg_console_out, msg_dispatcher);
                         use_progress!(msg_progress_bars, msg_dispatcher, config.transfer_threads);
 
-                        cuba.run_restore(restore);
+                        cuba.run_restore(RunHandle::default(), restore);
 
                         unuse_progress!(msg_progress_bars, msg_dispatcher);
                         use_console_out!(msg_console_out, msg_dispatcher);
@@ -231,7 +231,7 @@ fn main() {
                         unuse_console_out!(msg_console_out, msg_dispatcher);
                         use_progress!(msg_progress_bars, msg_dispatcher, config.transfer_threads);
 
-                        cuba.run_verify(backup, all);
+                        cuba.run_verify(RunHandle::default(), backup, all);
 
                         unuse_progress!(msg_progress_bars, msg_dispatcher);
                         use_console_out!(msg_console_out, msg_dispatcher);
@@ -244,7 +244,7 @@ fn main() {
                         unuse_console_out!(msg_console_out, msg_dispatcher);
                         use_progress!(msg_progress_bars, msg_dispatcher, config.transfer_threads);
 
-                        cuba.run_clean(backup);
+                        cuba.run_clean(RunHandle::default(), backup);
 
                         unuse_progress!(msg_progress_bars, msg_dispatcher);
                         use_console_out!(msg_console_out, msg_dispatcher);

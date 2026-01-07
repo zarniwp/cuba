@@ -1,6 +1,7 @@
 use crossbeam_channel::Sender;
 use std::sync::Arc;
 
+use crate::core::run_state::RunState;
 use crate::send_error;
 use crate::send_warns;
 use crate::shared::clean_message::{CleanError, CleanInfo, CleanMessage};
@@ -16,7 +17,10 @@ use super::fs::fs_base::FSMount;
 use super::transferred_node::{Flags, MaskedFlags, Restore, TransferredNodes};
 
 /// Runs the clean process.
-pub fn run_clean(fs_mnt: FSMount, sender: Sender<Arc<dyn Message>>) {
+pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<dyn Message>>) {
+    // Set running to true.
+    run_state.start();
+
     // Connect fs.
     if let Err(err) = fs_mnt.fs.write().unwrap().connect() {
         send_error!(sender, err);
@@ -60,67 +64,76 @@ pub fn run_clean(fs_mnt: FSMount, sender: Sender<Arc<dyn Message>>) {
                     )))
                     .unwrap();
 
-                match fs_node.abs_path.sub_abs_dir(&fs_mnt.abs_dir_path) {
-                    Ok(node_rel_path) => {
-                        if let Some(transferred_node) = transferred_nodes_read
-                            .view::<Restore>()
-                            .get_node_for_src(&node_rel_path)
-                        {
-                            if clean_flags.matches(transferred_node.flags) {
+                if run_state.is_canceled() {
+                    false
+                } else {
+                    match fs_node.abs_path.sub_abs_dir(&fs_mnt.abs_dir_path) {
+                        Ok(node_rel_path) => {
+                            if let Some(transferred_node) = transferred_nodes_read
+                                .view::<Restore>()
+                                .get_node_for_src(&node_rel_path)
+                            {
+                                if clean_flags.matches(transferred_node.flags) {
+                                    return remove_node(
+                                        &fs_node.abs_path,
+                                        &node_rel_path,
+                                        fs_mnt.clone(),
+                                        sender.clone(),
+                                    );
+                                } else {
+                                    sender
+                                        .send(Arc::new(CleanMessage::new(
+                                            &node_rel_path,
+                                            None,
+                                            Some(Arc::new(CleanInfo::Ok)),
+                                        )))
+                                        .unwrap();
+
+                                    if let Some(dest_rel_path) = transferred_nodes_read
+                                        .view::<Restore>()
+                                        .get_dest_rel_path(transferred_node)
+                                    {
+                                        transferred_nodes_write
+                                            .view_mut::<Restore>()
+                                            .set_transferred_node(&dest_rel_path, transferred_node);
+                                    }
+
+                                    return true;
+                                }
+                            } else {
                                 return remove_node(
                                     &fs_node.abs_path,
                                     &node_rel_path,
                                     fs_mnt.clone(),
                                     sender.clone(),
                                 );
-                            } else {
-                                sender
-                                    .send(Arc::new(CleanMessage::new(
-                                        &node_rel_path,
-                                        None,
-                                        Some(Arc::new(CleanInfo::Ok)),
-                                    )))
-                                    .unwrap();
-
-                                if let Some(dest_rel_path) = transferred_nodes_read
-                                    .view::<Restore>()
-                                    .get_dest_rel_path(transferred_node)
-                                {
-                                    transferred_nodes_write
-                                        .view_mut::<Restore>()
-                                        .set_transferred_node(&dest_rel_path, transferred_node);
-                                }
-
-                                return true;
                             }
-                        } else {
-                            return remove_node(
-                                &fs_node.abs_path,
-                                &node_rel_path,
-                                fs_mnt.clone(),
-                                sender.clone(),
-                            );
+                        }
+                        Err(err) => {
+                            send_error!(sender, err);
                         }
                     }
-                    Err(err) => {
-                        send_error!(sender, err);
-                    }
-                }
 
-                true
+                    true
+                }
             },
             &|warned| send_warns!(sender, warned),
             &|err| send_error!(sender, err),
         )
         .unwrap();
 
-    // Write cuba json.
-    write_cuba_json(&fs_mnt, &transferred_nodes_write, &sender);
+    if !run_state.is_canceled() {
+        // Write cuba json.
+        write_cuba_json(&fs_mnt, &transferred_nodes_write, &sender);
+    }
 
     // Disconnect fs.
     if let Err(err) = fs_mnt.fs.write().unwrap().disconnect() {
         send_error!(sender, err);
     }
+
+    // Set running to false.
+    run_state.stop();
 }
 
 /// Removed a node.

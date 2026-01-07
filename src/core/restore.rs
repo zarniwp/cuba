@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use crate::core::run_state::RunState;
 use crate::send_error;
 use crate::shared::message::Message;
 use crate::shared::npath::Dir;
@@ -27,12 +28,16 @@ use super::util::move_rel_npaths;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_restore(
+    run_state: Arc<RunState>,
     threads: usize,
     include_patterns: &Option<Vec<String>>,
     exclude_patterns: &Option<Vec<String>>,
     fs_conn: FSConnection,
     sender: Sender<Arc<dyn Message>>,
 ) {
+    // Set running to true.
+    run_state.start();
+
     let mut include_matcher: Option<IncludeMatcher> = None;
     let mut exclude_matcher: Option<ExcludeMatcher> = None;
 
@@ -133,6 +138,7 @@ pub fn run_restore(
 
             // Run directory restore.
             task_worker.run(
+                run_state.clone(),
                 depth_threads,
                 Arc::new(directory_restore_task(arc_mutex_depth_src_rel_dirs)),
             );
@@ -143,6 +149,7 @@ pub fn run_restore(
 
     // Run file restore.
     task_worker.run(
+        run_state.clone(),
         threads,
         Arc::new(file_restore_task(
             arc_mutex_src_rel_files,
@@ -158,4 +165,7 @@ pub fn run_restore(
     if let Err(err) = fs_conn.close() {
         send_error!(sender, err);
     }
+
+    // Set running to false.
+    run_state.stop();
 }

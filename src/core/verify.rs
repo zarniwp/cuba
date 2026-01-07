@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
+use crate::core::run_state::RunState;
 use crate::send_error;
 use crate::shared::message::Message;
 use crate::shared::npath::Rel;
@@ -25,11 +26,15 @@ use super::transferred_node::Restore;
 
 /// Runs the verify process.
 pub fn run_verify(
+    run_state: Arc<RunState>,
     threads: usize,
     fs_mnt: FSMount,
     verify_all: bool,
     sender: Sender<Arc<dyn Message>>,
 ) {
+    // Set running to true.
+    run_state.start();
+
     // Create connection.
     let fs_conn = FSConnection {
         src_mnt: fs_mnt,
@@ -87,6 +92,7 @@ pub fn run_verify(
 
     // Run file verfiy.
     task_worker.run(
+        run_state.clone(),
         threads,
         Arc::new(node_verify_task(
             arc_mutex_src_rel_nodes,
@@ -99,15 +105,20 @@ pub fn run_verify(
     // Drop task worker.
     drop(task_worker);
 
-    // Write cuba json.
-    write_cuba_json(
-        &fs_conn.src_mnt,
-        &arc_rwlock_transferred_nodes.read().unwrap(),
-        &sender,
-    );
+    if !run_state.is_canceled() {
+        // Write cuba json.
+        write_cuba_json(
+            &fs_conn.src_mnt,
+            &arc_rwlock_transferred_nodes.read().unwrap(),
+            &sender,
+        );
+    }
 
     // Close connection.
     if let Err(err) = fs_conn.close() {
         send_error!(sender, err);
     }
+
+    // Set running to false.
+    run_state.stop();
 }

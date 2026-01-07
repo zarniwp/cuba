@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::thread;
 use trait_set::trait_set;
 
+use crate::core::run_state::RunState;
 use crate::shared::message::Info;
 use crate::shared::message::Message;
 use crate::shared::npath::Rel;
@@ -43,13 +44,14 @@ impl TaskWorker {
     }
 
     /// Run function.
-    pub fn run(&self, threads: usize, task: Arc<dyn Task>) {
+    pub fn run(&self, run_state: Arc<RunState>, threads: usize, task: Arc<dyn Task>) {
         let mut handles: Vec<thread::JoinHandle<()>> = vec![];
 
         for thread_number in 0..threads {
             let fs = self.fs_conn.clone();
             let sender: Sender<Arc<dyn Message>> = self.sender.clone();
             let task: Arc<dyn Task> = Arc::clone(&task);
+            let run_state = run_state.clone();
 
             let handle: thread::JoinHandle<()> = thread::spawn(move || {
                 let mut processing: bool = true;
@@ -64,7 +66,7 @@ impl TaskWorker {
                         Arc::new(TaskMessage::new(thread_number, rel_path, None, Some(info)))
                     };
 
-                while processing {
+                while processing && !run_state.is_canceled() {
                     processing = task(
                         &create_task_error_message,
                         &create_task_info_message,

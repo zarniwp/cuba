@@ -2,8 +2,10 @@
 
 use crossbeam_channel::Sender;
 use secrecy::SecretString;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 
+use crate::core::run_state::RunState;
 use crate::send_error;
 use crate::send_info;
 use crate::shared::{
@@ -53,6 +55,44 @@ fn create_fs_mount(
             "No filesystem with the name {:?} found",
             fs
         ))))
+    }
+}
+
+/// Defines the `RunHandle`.
+#[derive(Clone)]
+pub struct RunHandle {
+    state: Arc<RunState>,
+}
+
+/// Methods of `RunHandle`.
+impl RunHandle {
+    /// Creates a new `RunHandle`.
+    pub fn new() -> Self {
+        Self {
+            state: Arc::new(RunState::new()),
+        }
+    }
+
+    /// Returns true if the run is canceled.
+    pub fn is_canceled(&self) -> bool {
+        self.state.is_canceled()
+    }
+
+    /// Requests a cancel of the run.
+    pub fn request_cancel(&self) {
+        self.state.request_cancel();
+    }
+
+    /// Returns true if the run is running.
+    pub fn is_running(&self) -> bool {
+        self.state.is_running()
+    }
+}
+
+/// Default for `RunHandle`.
+impl Default for RunHandle {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -137,7 +177,7 @@ impl Cuba {
     }
 
     /// Runs the backup with the given backup profile name.
-    pub fn run_backup(&self, backup_name: &str) {
+    pub fn run_backup(&self, run_handle: RunHandle, backup_name: &str) {
         if let Some(config) = self.requires_config() {
             match config.backup.get(backup_name) {
                 Some(backup) => {
@@ -159,6 +199,7 @@ impl Cuba {
                     };
 
                     run_backup(
+                        run_handle.state.clone(),
                         config.transfer_threads,
                         backup.compression,
                         backup.encrypt,
@@ -183,7 +224,7 @@ impl Cuba {
     }
 
     /// Runs the restore with the given restore profile name.
-    pub fn run_restore(&self, restore_name: &str) {
+    pub fn run_restore(&self, run_handle: RunHandle, restore_name: &str) {
         if let Some(config) = self.requires_config() {
             match config.restore.get(restore_name) {
                 Some(restore) => {
@@ -205,6 +246,7 @@ impl Cuba {
                         };
 
                     run_restore(
+                        run_handle.state.clone(),
                         config.transfer_threads,
                         &restore.include,
                         &restore.exclude,
@@ -226,7 +268,7 @@ impl Cuba {
     }
 
     /// Runs the verify with the given backup profile name.
-    pub fn run_verify(&self, backup_name: &str, verify_all: &bool) {
+    pub fn run_verify(&self, run_handle: RunHandle, backup_name: &str, verify_all: &bool) {
         if let Some(config) = self.requires_config() {
             match config.backup.get(backup_name) {
                 Some(backup) => {
@@ -239,6 +281,7 @@ impl Cuba {
                     };
 
                     run_verify(
+                        run_handle.state.clone(),
                         config.transfer_threads,
                         fs_mnt,
                         *verify_all,
@@ -259,7 +302,7 @@ impl Cuba {
     }
 
     /// Runs the clean with the given backup profile name.
-    pub fn run_clean(&self, backup_name: &str) {
+    pub fn run_clean(&self, run_handle: RunHandle, backup_name: &str) {
         if let Some(config) = self.requires_config() {
             match config.backup.get(backup_name) {
                 Some(backup) => {
@@ -271,7 +314,7 @@ impl Cuba {
                         }
                     };
 
-                    run_clean(fs_mnt, self.sender.clone());
+                    run_clean(run_handle.state.clone(), fs_mnt, self.sender.clone());
                 }
                 None => {
                     send_error!(
