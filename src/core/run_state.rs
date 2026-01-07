@@ -16,7 +16,7 @@ impl RunState {
         }
     }
 
-    /// Starts the a run.
+    /// Starts a run.
     pub fn start(&self) {
         self.canceled.store(false, Ordering::SeqCst);
         self.running.store(true, Ordering::SeqCst);
