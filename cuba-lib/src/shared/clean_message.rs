@@ -43,9 +43,9 @@ impl Info for CleanInfo {
 /// ```
 /// use std::sync::Arc;
 /// use std::path::Path;
-/// use cuba::shared::message::StringError;
-/// use cuba::shared::clean_message::{CleanInfo, CleanError, CleanMessage};
-/// use cuba::shared::npath::{NPath, Rel, File};
+/// use cuba_lib::shared::message::StringError;
+/// use cuba_lib::shared::clean_message::{CleanInfo, CleanError, CleanMessage};
+/// use cuba_lib::shared::npath::{NPath, Rel, File};
 ///
 /// let rel_file_path = NPath::<Rel, File>::try_from("file.zip").unwrap();
 /// let clean_error = CleanMessage::new(&rel_file_path.clone().into(), Some(Arc::new(CleanError::RemoveFailed)), None);

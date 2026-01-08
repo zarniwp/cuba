@@ -80,9 +80,9 @@ impl Info for TaskInfo {
 /// ```
 /// use std::sync::Arc;
 /// use std::path::Path;
-/// use cuba::shared::message::StringError;
-/// use cuba::shared::task_message::{TaskInfo, TaskError, TaskMessage};
-/// use cuba::shared::npath::{NPath, Rel, File};
+/// use cuba_lib::shared::message::StringError;
+/// use cuba_lib::shared::task_message::{TaskInfo, TaskError, TaskMessage};
+/// use cuba_lib::shared::npath::{NPath, Rel, File};
 ///
 /// let rel_file_path = NPath::<Rel, File>::try_from("file.zip").unwrap();
 /// let task_error = TaskMessage::new(5, &rel_file_path.clone().into(), Some(Arc::new(TaskError::VerifiedFailed)), None);

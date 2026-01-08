@@ -1,4 +1,4 @@
-pub mod api;
+pub mod cuba;
 
 mod backup;
 mod clean;

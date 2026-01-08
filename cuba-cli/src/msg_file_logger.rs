@@ -6,9 +6,9 @@ use std::error::Error;
 use std::io::Write;
 use std::sync::Mutex;
 
-use crate::shared::message::Info;
-use crate::shared::msg_receiver::{MsgHandler, trace_error};
-use crate::shared::npath::{Rel, UNPath};
+use cuba_lib::shared::message::Info;
+use cuba_lib::shared::msg_receiver::{MsgHandler, trace_error};
+use cuba_lib::shared::npath::{Rel, UNPath};
 
 /// Defines a `MsgLogFile`
 struct MsgLogFile {

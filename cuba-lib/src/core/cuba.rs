@@ -114,17 +114,17 @@ impl Cuba {
         }
     }
 
-    /// Replace the config from outside.
+    /// Sets the config.
     pub fn set_config(&mut self, config: Config) {
         self.config = Some(config);
     }
 
-    /// Get immutable reference to config if it exists.
+    /// Get immutable reference to config, if it exists.
     pub fn config(&self) -> Option<&Config> {
         self.config.as_ref()
     }
 
-    /// Get mutable reference to config if it exists.
+    /// Get mutable reference to config, if it exists.
     pub fn config_mut(&mut self) -> Option<&mut Config> {
         self.config.as_mut()
     }

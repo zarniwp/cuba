@@ -1,9 +1,11 @@
-mod cli;
-mod core;
-mod shared;
+mod cli_cmds;
+mod console_out;
+mod msg_file_logger;
+mod progress_bars;
 
 use clap::{CommandFactory, Parser};
 use crossbeam_channel::{Sender, unbounded};
+use cuba_lib::{send_error, send_info};
 use inquire::Password;
 use secrecy::SecretString;
 use std::io::Write;
@@ -11,19 +13,17 @@ use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
 
-use crate::core::api::{Cuba, RunHandle};
-use crate::shared::config::{EXAMPLE_CONFIG, load_config_from_file};
-use crate::shared::message::Message;
-use crate::shared::message::StringError;
-use crate::shared::msg_dispatcher::MsgDispatcher;
-use crate::shared::msg_receiver::MsgReceiver;
+use cuba_lib::core::cuba::{Cuba, RunHandle};
+use cuba_lib::shared::config::{EXAMPLE_CONFIG, load_config_from_file};
+use cuba_lib::shared::message::Message;
+use cuba_lib::shared::message::StringError;
+use cuba_lib::shared::msg_dispatcher::MsgDispatcher;
+use cuba_lib::shared::msg_receiver::MsgReceiver;
 
-use crate::cli::cli_cmds::{
-    Cli, ConfigCommands, ConfigExampleCommands, MainCommands, PasswordCommands,
-};
-use crate::cli::console_out::ConsoleOut;
-use crate::cli::msg_file_logger::MsgFileLoggerBuilder;
-use crate::cli::progress_bars::ProgressBars;
+use crate::cli_cmds::{Cli, ConfigCommands, ConfigExampleCommands, MainCommands, PasswordCommands};
+use crate::console_out::ConsoleOut;
+use crate::msg_file_logger::MsgFileLoggerBuilder;
+use crate::progress_bars::ProgressBars;
 
 /// A macro the subscribes the `MsgFileLogger` to the `MsgDispatcher`.
 macro_rules! use_logger {

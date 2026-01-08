@@ -33,7 +33,7 @@ impl Info for ProgressInfo {
 /// # Example
 /// ```
 /// use std::sync::Arc;
-/// use cuba::shared::progress_message::{ProgressInfo, ProgressMessage};
+/// use cuba_lib::shared::progress_message::{ProgressInfo, ProgressMessage};
 ///
 /// let progress_tick = ProgressMessage::new(Arc::new(ProgressInfo::Ticks), 1);
 /// ```

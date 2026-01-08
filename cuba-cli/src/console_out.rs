@@ -1,7 +1,7 @@
-use crate::shared::message::Info;
-use crate::shared::msg_receiver::MsgHandler;
-use crate::shared::npath::{Rel, UNPath};
 use console::Style;
+use cuba_lib::shared::message::Info;
+use cuba_lib::shared::msg_receiver::MsgHandler;
+use cuba_lib::shared::npath::{Rel, UNPath};
 use std::error::Error;
 
 /// Defines a `ConsoleOut`.

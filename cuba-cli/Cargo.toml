@@ -1,0 +1,26 @@
+[package]
+name = "cuba-cli"
+version = "0.1.0"
+edition = "2024"
+description = "A lightweight backup tool (CLI)"
+documentation = "https://docs.rs/cuba"
+repository = "https://github.com/zarniwp/cuba"
+homepage = "https://github.com/zarniwp/cuba/"
+readme = "../README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["backup"]
+
+[[bin]]
+name = "cuba"
+path = "src/main.rs"
+
+[dependencies]
+cuba-lib = { path = "../cuba-lib" }
+crossbeam-channel = { workspace = true }
+secrecy = { workspace = true }
+clap = { version = "4.5.53", features = ["derive"] }
+console = "0.16.1"
+flexi_logger = "0.31.7"
+log = "0.4.28"
+inquire = "0.9.1"
+indicatif = "0.18.3"

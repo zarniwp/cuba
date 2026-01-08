@@ -1,0 +1,19 @@
+[package]
+name = "cuba-gui"
+version = "0.1.0"
+edition = "2024"
+description = "A lightweight backup tool (GUI)"
+documentation = "https://docs.rs/cuba"
+repository = "https://github.com/zarniwp/cuba"
+homepage = "https://github.com/zarniwp/cuba/"
+readme = "../README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["backup", "GUI"]
+
+[dependencies]
+cuba-lib = { path = "../cuba-lib" }
+crossbeam-channel = { workspace = true }
+secrecy = { workspace = true }
+eframe = "0.33.3"
+egui = "0.33.3"
+egui_dock = "0.18.0"

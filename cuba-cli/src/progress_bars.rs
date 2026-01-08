@@ -3,9 +3,9 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 
-use crate::shared::message::Info;
-use crate::shared::msg_receiver::MsgHandler;
-use crate::shared::npath::{Rel, UNPath};
+use cuba_lib::shared::message::Info;
+use cuba_lib::shared::msg_receiver::MsgHandler;
+use cuba_lib::shared::npath::{Rel, UNPath};
 
 /// Visualizes messages as progress bars.
 pub struct ProgressBars {

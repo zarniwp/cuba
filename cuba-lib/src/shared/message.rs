@@ -14,7 +14,7 @@ pub trait Info: fmt::Debug + fmt::Display + Send + Sync {
 ///
 /// # Example
 /// ```
-/// use cuba::shared::message::StringInfo;
+/// use cuba_lib::shared::message::StringInfo;
 ///
 /// let str_info = StringInfo::new("My Info".to_string());
 /// ```
@@ -57,7 +57,7 @@ pub trait Message: fmt::Display + Send + Sync {
 /// # Example
 /// ```
 /// use std::sync::Arc;
-/// use cuba::shared::message::{StringInfo, InfoMessage};
+/// use cuba_lib::shared::message::{StringInfo, InfoMessage};
 ///
 /// let str_info = StringInfo::new("My Info".to_string());
 /// let info_message = InfoMessage::new(Arc::new(str_info));
@@ -102,7 +102,7 @@ impl Display for InfoMessage {
 /// # Example
 /// ```
 /// use std::sync::Arc;
-/// use cuba::shared::message::{StringInfo, WarnMessage};
+/// use cuba_lib::shared::message::{StringInfo, WarnMessage};
 ///
 /// let str_info = StringInfo::new("My Warning".to_string());
 /// let info_message = WarnMessage::new(Arc::new(str_info));
@@ -146,7 +146,7 @@ impl Display for WarnMessage {
 ///
 /// # Example
 /// ```
-/// use cuba::shared::message::StringError;
+/// use cuba_lib::shared::message::StringError;
 ///
 /// let str_err = StringError::new("My Error".to_string());
 /// ```
@@ -179,7 +179,7 @@ impl fmt::Display for StringError {
 /// ```
 /// use std::sync::Arc;
 /// use std::io;
-/// use cuba::shared::message::{StringError, ErrorMessage};
+/// use cuba_lib::shared::message::{StringError, ErrorMessage};
 ///
 /// let io_err = io::Error::new(io::ErrorKind::Other, "Disk full");
 /// let str_err = StringError::new("My Error".to_string());

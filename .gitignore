@@ -3,9 +3,6 @@
 **/*.swp
 .DS_Store
 .continue
-cuba.info.log
-cuba.error.log
-cuba.warn.log
 cuba.toml
 deploy.bat
 restore-file.bat
