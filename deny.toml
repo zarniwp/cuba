@@ -16,6 +16,7 @@ allow = [
 [bans]
 multiple-versions = "allow"
 
-skip = [
-  { name = "paste" }, # Used by egui.
+[advisories]
+ignore-crates = [
+    { name = "paste", reason = "Transitive dependency via egui_dock; stable proc-macro" },
 ]

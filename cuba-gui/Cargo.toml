@@ -10,6 +10,11 @@ readme = "../README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["backup", "GUI"]
 
+[package.metadata]
+assets = [
+    "JetBrains Mono (SIL Open Font License 1.1)"
+]
+
 [dependencies]
 cuba-lib = { path = "../cuba-lib" }
 crossbeam-channel = { workspace = true }

@@ -1,22 +1,16 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crossbeam_channel::Sender;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::{send_error, shared::message::Message};
+use crate::{send_error, send_info, shared::message::Message};
 
 use super::npath::{Abs, Dir, NPath, Rel};
 
 /// Load config from file.
 pub fn load_config_from_file(sender: Sender<Arc<dyn Message>>, path: &str) -> Option<Config> {
     match std::fs::read_to_string(path) {
-        Ok(content) => match toml::from_str::<Config>(&content) {
-            Ok(config) => Some(config),
-            Err(err) => {
-                send_error!(sender, err);
-                None
-            }
-        },
+        Ok(config_str) => load_config_from_str(sender, &config_str),
         Err(err) => {
             send_error!(sender, err);
             None
@@ -24,8 +18,35 @@ pub fn load_config_from_file(sender: Sender<Arc<dyn Message>>, path: &str) -> Op
     }
 }
 
+/// Load config from &str.
+pub fn load_config_from_str(sender: Sender<Arc<dyn Message>>, config: &str) -> Option<Config> {
+    match toml::from_str::<Config>(config) {
+        Ok(config) => Some(config),
+        Err(err) => {
+            send_error!(sender, err);
+            None
+        }
+    }
+}
+
+/// Save config to file.
+pub fn save_config_to_file(sender: Sender<Arc<dyn Message>>, path: &str, config: &Config) {
+    let content = match toml::to_string_pretty(config) {
+        Ok(content) => content,
+        Err(err) => {
+            send_error!(sender, err);
+            return;
+        }
+    };
+
+    match std::fs::write(path, content) {
+        Ok(_) => send_info!(sender, "Config saved to {}", path),
+        Err(err) => send_error!(sender, err),
+    }
+}
+
 /// Defines a `Config`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     /// Number of transfer threads.
     pub transfer_threads: usize,
@@ -59,7 +80,7 @@ impl Config {
 }
 
 /// Defines a `FilesystemConfig`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FilesystemConfig {
     pub local: HashMap<String, LocalFS>,
     pub webdav: HashMap<String, WebDAVFS>,
@@ -80,14 +101,14 @@ impl FilesystemConfig {
 }
 
 // Defines a `LocalFS`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LocalFS {
     /// Directory.
     pub dir: NPath<Abs, Dir>,
 }
 
 /// Defines a `WebDAVFS`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WebDAVFS {
     /// Url.
     pub url: NPath<Abs, Dir>,
@@ -103,7 +124,7 @@ pub struct WebDAVFS {
 }
 
 /// Defines a `BackupConfig`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BackupConfig {
     /// The source filesystem.
     pub src_fs: String,
@@ -143,7 +164,7 @@ impl BackupConfig {
 }
 
 /// Defines a `RestoreConfig`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RestoreConfig {
     /// The source filesystem.
     pub src_fs: String,
