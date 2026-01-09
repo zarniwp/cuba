@@ -19,9 +19,9 @@ Cuba is a lightweight and flexible backup tool for your local data. It allows yo
 
 ## Crates
 
-- [Cuba lib](cuba-lib)
-- [Cuba cli](cuba-cli)
-- [Cuba gui](cuba-gui)
+- [Core library for Cuba](cuba-lib)
+- [Command-line interface for Cuba](cuba-cli)
+- [Graphical user interface for Cuba](cuba-gui)
 
 ## License
 This project is licensed under either of

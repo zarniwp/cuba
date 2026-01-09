@@ -2,13 +2,14 @@
 name = "cuba-cli"
 version = "0.1.0"
 edition = "2024"
-description = "A lightweight backup tool (CLI)"
+description = "Command-line interface for Cuba"
 documentation = "https://docs.rs/cuba"
 repository = "https://github.com/zarniwp/cuba"
 homepage = "https://github.com/zarniwp/cuba/"
 readme = "../README.md"
 license = "MIT OR Apache-2.0"
-keywords = ["backup"]
+keywords = ["backup", "cli"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "cuba"

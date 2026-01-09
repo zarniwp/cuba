@@ -2,13 +2,13 @@
 name = "cuba-lib"
 version = "0.1.0"
 edition = "2024"
-description = "A lightweight backup tool (LIB)"
+description = "Core library for Cuba"
 documentation = "https://docs.rs/cuba"
 repository = "https://github.com/zarniwp/cuba"
 homepage = "https://github.com/zarniwp/cuba/"
 readme = "../README.md"
 license = "MIT OR Apache-2.0"
-keywords = ["backup", "lib"]
+keywords = ["backup"]
 
 [dependencies]
 crossbeam-channel = { workspace = true }
