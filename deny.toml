@@ -15,3 +15,7 @@ allow = [
 
 [bans]
 multiple-versions = "allow"
+
+skip = [
+  { name = "paste" }, # Used by egui.
+]

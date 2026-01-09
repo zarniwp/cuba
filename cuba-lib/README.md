@@ -7,14 +7,22 @@ For more Information, see [Workspace README](../README.md)
 ## Usage
 
 ```rust
+use std::sync::Arc;
 use crossbeam_channel::{Sender, unbounded};
-use cuba_lib::core::cuba::{Cuba, RunHandle};
+use cuba_lib::{core::cuba::{Cuba, RunHandle}, 
+use cuba_lib::shared::{config::load_config_from_file, message::Message, msg_receiver::MsgReceiver}};
 
-main() {
-    // Create a channel for communication between the GUI and the Cuba instance
+fn main() {
+    // Create a channel for communication between the your app and the Cuba instance.
     let (sender, receiver) = unbounded::<Arc<dyn Message>>();
 
-    // Create a new Cuba instance with the sender channel
+    // Optional: Create a message handler to keep track of messages and progress.
+    let my_message_handler = MyMessageHandler::new();
+
+    // Bind the message handler to the receiver channel.
+    let msg_receiver = MsgReceiver::new(receiver, my_message_handler);
+
+    // Create a new Cuba instance with the sender channel.
     let mut cuba = Cuba::new(sender.clone());
 
     // Load the configuration from the file "cuba.toml"
@@ -22,8 +30,11 @@ main() {
         cuba.set_config(config);
     }
 
-    // Create a new backup from the profile "MyBackup".
+    // Run a backup with the profile "MyBackup".
     cuba.run_backup(RunHandle::default(), "MyBackup");
+
+    // Create a restore with the profile "MyRestore".
+    cuba.run_restore(RunHandle::default(), "MyRestore");
 }
 ```
 ## License
