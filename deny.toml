@@ -6,7 +6,11 @@ allow = [
     "Apache-2.0",
     "GPL-2.0-only",
     "BSL-1.0",
-    "BSD-2-Clause"
+    "BSD-2-Clause",
+    "Zlib",
+    "ISC",
+    "OFL-1.1",
+    "Ubuntu-font-1.0"
 ]
 
 [bans]

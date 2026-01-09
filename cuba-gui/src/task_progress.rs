@@ -150,6 +150,38 @@ impl TaskProgress {
         );
         self.update_handler.update();
     }
+
+    /// Handles a clean info.
+    fn handle_clean_info(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        *self.task_message.read().unwrap()[0].write().unwrap() = TaskMessage::new(
+            TaskMessageType::Info,
+            rel_path.compact_unicode(),
+            info.to_string(),
+        );
+
+        self.task_progress.read().unwrap()[0]
+            .write()
+            .unwrap()
+            .advance_one();
+
+        self.update_handler.update();
+    }
+
+    /// Handles a clean error.
+    fn handle_clean_error(&self, rel_path: &UNPath<Rel>, error: &(dyn Error + Send + Sync)) {
+        *self.task_message.read().unwrap()[0].write().unwrap() = TaskMessage::new(
+            TaskMessageType::Error,
+            rel_path.compact_unicode(),
+            error.to_string(),
+        );
+
+        self.task_progress.read().unwrap()[0]
+            .write()
+            .unwrap()
+            .advance_one();
+
+        self.update_handler.update();
+    }
 }
 
 /// Impl of `MsgHandler` for `TaskProgress`.
@@ -255,6 +287,21 @@ impl MsgHandler for TaskProgress {
         error: &(dyn Error + Send + Sync),
     ) {
         self.handle_task_error(thread_number, rel_path, error);
+    }
+
+    /// Handles a `CleanInfo::Ok` message.
+    fn clean_ok(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        self.handle_clean_info(rel_path, info);
+    }
+
+    /// Handles a `CleanInfo::Removed` message.
+    fn clean_removed(&self, rel_path: &UNPath<Rel>, info: &(dyn Info + Send + Sync)) {
+        self.handle_clean_info(rel_path, info);
+    }
+
+    /// Handles a `CleanMessage` with error.
+    fn clean_error(&self, rel_path: &UNPath<Rel>, error: &(dyn Error + Send + Sync)) {
+        self.handle_clean_error(rel_path, error);
     }
 
     /// Handles a `ProgressInfo::Ticks` message.
