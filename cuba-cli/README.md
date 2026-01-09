@@ -1,5 +1,11 @@
 # Cuba CLI
 
+Cuba is a lightweight and flexible backup tool for your local data. It allows you to back up files to **WebDAV** cloud or network drives while keeping them in their original form by default. Optional **compression** and **encryption** ensure your backups are efficient and secure, and because standard formats are used, your files can also be accessed or restored with public tools if needed.
+
+For more Information, see [Workspace README](../README.md)
+
+## Usage
+
 ```bash
 Cuba - a lightweight backup tool
 
@@ -40,6 +46,6 @@ $ cuba password set backup_id
 
 Make sure that backup_id matches the password_id used in your encryption settings.
 
-## More ...
+## License
 
-For further information and license, see [Workspace README](../README.md).
+See [Workspace README](../README.md).
