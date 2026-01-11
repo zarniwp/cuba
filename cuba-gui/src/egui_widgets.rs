@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use cuba_lib::shared::npath::{Abs, Dir, NPath};
 use egui::{Color32, Shape, Stroke, Vec2};
 
 /// Defines a `ProgressState`
@@ -58,7 +59,7 @@ impl Default for ProgressState {
 }
 
 /// Draws a progress spinner
-pub fn progress_spinner(
+pub fn progress_spinner_widget(
     ui: &mut egui::Ui,
     progress_state: &ProgressState,
     color_spinning: Color32,
@@ -102,4 +103,74 @@ pub fn progress_spinner(
 
         painter.add(Shape::line(points, Stroke::new(2.0, color_spinning)));
     }
+}
+
+/// Defines a `NPathEditorState`.
+pub struct NPathEditorState {
+    pub key: String,
+    pub refresh: bool,
+    pub buffer: String,
+}
+
+/// Methods of `NPathEditorState`.
+impl NPathEditorState {
+    pub fn new() -> Self {
+        Self {
+            key: String::new(),
+            refresh: true,
+            buffer: String::new(),
+        }
+    }
+}
+
+/// Impl of `Default` for `NPathEditorState`.
+impl Default for NPathEditorState {
+    fn default() -> Self {
+        NPathEditorState::new()
+    }
+}
+
+/// Draws a npath editor
+pub fn npath_editor_widget(
+    ui: &mut egui::Ui,
+    label: &str,
+    key: &str,
+    path: &mut NPath<Abs, Dir>,
+    npath_state: &mut NPathEditorState,
+) {
+    ui.horizontal(|ui| {
+        ui.label(label);
+
+        // Key must be the same or refresh.
+        if npath_state.key != key {
+            npath_state.key = key.to_owned();
+            npath_state.refresh = true;
+        }
+
+        // Refresh editor from source.
+        if npath_state.refresh {
+            npath_state.buffer = path.to_string();
+            npath_state.refresh = false;
+        }
+
+        let valid;
+
+        match NPath::<Abs, Dir>::try_from(npath_state.buffer.as_str()) {
+            Ok(new_path) => {
+                *path = new_path;
+                valid = true;
+            }
+            Err(_) => {
+                valid = false;
+            }
+        }
+
+        let text_edit = if valid {
+            egui::TextEdit::singleline(&mut npath_state.buffer)
+        } else {
+            egui::TextEdit::singleline(&mut npath_state.buffer).background_color(Color32::DARK_RED)
+        };
+
+        text_edit.show(ui);
+    });
 }

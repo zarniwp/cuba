@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 mod backup_view;
+mod config_view;
 mod egui_widgets;
 mod msg_log_views;
 mod restore_view;
@@ -11,6 +12,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{
     backup_view::BackupView,
+    config_view::ConfigView,
     msg_log_views::{MsgLogLevel, MsgLogView},
     restore_view::RestoreView,
 };
@@ -99,7 +101,9 @@ impl TabViewer for AppViewer {
 
     /// Returns the title of the `AppView` as a `egui::WidgetText`.
     fn title(&mut self, app_view: &mut Arc<RwLock<dyn AppView>>) -> egui::WidgetText {
-        egui::WidgetText::from(app_view.read().unwrap().name())
+        egui::RichText::new(app_view.read().unwrap().name())
+            .font(egui::FontId::proportional(16.0))
+            .into()
     }
 
     /// Renders each view.
@@ -124,6 +128,34 @@ impl CubaGui {
     fn new(creation_ctx: &eframe::CreationContext<'_>) -> Self {
         setup_fonts(&creation_ctx.egui_ctx);
 
+        let mut style = (*creation_ctx.egui_ctx.style()).clone();
+
+        style.text_styles = [
+            (
+                egui::TextStyle::Heading,
+                egui::FontId::new(20.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Body,
+                egui::FontId::new(16.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Button,
+                egui::FontId::new(16.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Small,
+                egui::FontId::new(13.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Monospace,
+                egui::FontId::new(14.0, egui::FontFamily::Monospace),
+            ),
+        ]
+        .into();
+
+        creation_ctx.egui_ctx.set_style(style);
+
         let (sender, receiver) = unbounded::<Arc<dyn Message>>();
 
         let mut msg_dispatcher = MsgDispatcher::new(receiver.clone());
@@ -141,6 +173,10 @@ impl CubaGui {
             arc_msg_dispatcher.clone(),
         )));
         let restore_view = Arc::new(RwLock::new(RestoreView::new(creation_ctx.egui_ctx.clone())));
+        let config_view = Arc::new(RwLock::new(ConfigView::new(
+            creation_ctx.egui_ctx.clone(),
+            cuba.clone(),
+        )));
         let infos_view = Arc::new(RwLock::new(MsgLogView::new(
             creation_ctx.egui_ctx.clone(),
             MsgLogLevel::Info,
@@ -160,6 +196,7 @@ impl CubaGui {
         let app_views: Vec<Arc<RwLock<dyn AppView>>> = vec![
             backup_view,
             restore_view,
+            config_view,
             infos_view,
             warnings_view,
             errors_view,
@@ -210,13 +247,14 @@ impl CubaGui {
 
         surface.push_to_first_leaf(app_views[0].clone());
         surface.push_to_first_leaf(app_views[1].clone());
+        surface.push_to_first_leaf(app_views[2].clone());
 
-        let bottom = surface.split_below(NodeIndex::root(), 0.6, vec![app_views[2].clone()]);
+        let bottom = surface.split_below(NodeIndex::root(), 0.6, vec![app_views[3].clone()]);
 
         surface.split_right(
             bottom[1],
             0.5,
-            vec![app_views[4].clone(), app_views[3].clone()],
+            vec![app_views[5].clone(), app_views[4].clone()],
         );
     }
 

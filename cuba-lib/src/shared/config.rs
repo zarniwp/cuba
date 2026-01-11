@@ -45,6 +45,54 @@ pub fn save_config_to_file(sender: Sender<Arc<dyn Message>>, path: &str, config:
     }
 }
 
+// Defines a `ConfigEntryType`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ConfigEntryType {
+    LocalFS,
+    WebDAVFS,
+    Backup,
+    Restore,
+}
+
+// Defines a `ConfigEntryKey`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConfigEntryKey {
+    pub entry_type: ConfigEntryType,
+    pub name: String,
+}
+
+// Defines a `ConfigEntry`.
+pub enum ConfigEntry<'a> {
+    LocalFS {
+        entry_type: &'a str,
+        name: &'a str,
+        fs: &'a LocalFS,
+    },
+    WebDAVFS {
+        entry_type: &'a str,
+        name: &'a str,
+        fs: &'a WebDAVFS,
+    },
+    Backup {
+        entry_type: &'a str,
+        name: &'a str,
+        backup: &'a BackupConfig,
+    },
+    Restore {
+        entry_type: &'a str,
+        name: &'a str,
+        restore: &'a RestoreConfig,
+    },
+}
+
+// Defines a `ConfigEntryMut`.
+pub enum ConfigEntryMut<'a> {
+    LocalFS(&'a mut LocalFS),
+    WebDAVFS(&'a mut WebDAVFS),
+    Backup(&'a mut BackupConfig),
+    Restore(&'a mut RestoreConfig),
+}
+
 /// Defines a `Config`.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -76,6 +124,64 @@ impl Config {
         }
 
         false
+    }
+
+    /// Lists all entries in the config.
+    pub fn list_entry_keys(&self) -> Vec<ConfigEntryKey> {
+        let mut keys = Vec::new();
+
+        for name in self.filesystem.local.keys() {
+            keys.push(ConfigEntryKey {
+                entry_type: ConfigEntryType::LocalFS,
+                name: name.clone(),
+            });
+        }
+
+        for name in self.filesystem.webdav.keys() {
+            keys.push(ConfigEntryKey {
+                entry_type: ConfigEntryType::WebDAVFS,
+                name: name.clone(),
+            });
+        }
+
+        for name in self.backup.keys() {
+            keys.push(ConfigEntryKey {
+                entry_type: ConfigEntryType::Backup,
+                name: name.clone(),
+            });
+        }
+
+        for name in self.restore.keys() {
+            keys.push(ConfigEntryKey {
+                entry_type: ConfigEntryType::Restore,
+                name: name.clone(),
+            });
+        }
+
+        keys
+    }
+
+    /// Gets a mutable reference to a config entry.
+    pub fn get_entry_mut(&mut self, key: &ConfigEntryKey) -> Option<ConfigEntryMut<'_>> {
+        match key.entry_type {
+            ConfigEntryType::LocalFS => self
+                .filesystem
+                .local
+                .get_mut(&key.name)
+                .map(ConfigEntryMut::LocalFS),
+
+            ConfigEntryType::WebDAVFS => self
+                .filesystem
+                .webdav
+                .get_mut(&key.name)
+                .map(ConfigEntryMut::WebDAVFS),
+
+            ConfigEntryType::Backup => self.backup.get_mut(&key.name).map(ConfigEntryMut::Backup),
+
+            ConfigEntryType::Restore => {
+                self.restore.get_mut(&key.name).map(ConfigEntryMut::Restore)
+            }
+        }
     }
 }
 

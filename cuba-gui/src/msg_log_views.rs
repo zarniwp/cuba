@@ -67,13 +67,13 @@ impl AppView for MsgLogView {
             // Align buttons to the right.
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 // Clear button.
-                if ui.button("🗑 Clear").clicked() {
+                if ui.small_button("🗑 Clear").clicked() {
                     self.msg_log.messages.write().unwrap().clear();
                     self.msg_log.update_handler.update();
                 }
 
                 // Copy button.
-                if ui.button("📋 Copy").clicked() {
+                if ui.small_button("📋 Copy").clicked() {
                     let text = self.msg_log.snapshot();
                     ui.ctx().copy_text(text);
                 }

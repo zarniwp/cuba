@@ -12,7 +12,7 @@ use egui::Color32;
 
 use crate::{
     AppView, UpdateHandler,
-    egui_widgets::progress_spinner,
+    egui_widgets::progress_spinner_widget,
     task_progress::{TaskMessageType, TaskProgress},
     util::make_cuba_runner,
 };
@@ -60,8 +60,9 @@ impl AppView for BackupView {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let height = ui.available_height();
 
-        // Horizontal layout.
+        // Horizontal layout (profile list, profile content).
         ui.horizontal(|ui| {
+            // Vertical layout (heading, list).
             ui.vertical(|ui| {
                 ui.set_width(200.0);
                 ui.set_height(height);
@@ -80,14 +81,7 @@ impl AppView for BackupView {
                             for profile in config.backup.keys() {
                                 let selected = self.selected_profiles.contains(profile);
 
-                                if ui
-                                    .selectable_label(
-                                        selected,
-                                        egui::RichText::new(profile)
-                                            .font(egui::FontId::proportional(16.0)),
-                                    )
-                                    .clicked()
-                                {
+                                if ui.selectable_label(selected, profile).clicked() {
                                     if selected {
                                         self.selected_profiles.remove(profile);
                                     } else {
@@ -102,7 +96,7 @@ impl AppView for BackupView {
             // Separator.
             ui.separator();
 
-            // Profile content.
+            // Vertical layout (profile content).
             ui.vertical(|ui| {
                 ui.set_height(height);
 
@@ -159,16 +153,10 @@ impl AppView for BackupView {
                     ui.separator();
 
                     // The compress label.
-                    ui.label(
-                        egui::RichText::new(format!("Compression: {}", compression))
-                            .font(egui::FontId::proportional(16.0)),
-                    );
+                    ui.label(format!("Compression: {}", compression));
 
                     // The encryption label.
-                    ui.label(
-                        egui::RichText::new(format!("Encyption: {}", encyption))
-                            .font(egui::FontId::proportional(16.0)),
-                    );
+                    ui.label(format!("Encyption: {}", encyption));
 
                     // Separator.
                     ui.separator();
@@ -176,7 +164,7 @@ impl AppView for BackupView {
                     // The task message table.
                     egui::Grid::new("Tasks").show(ui, |ui| {
                         for thread_number in 0..config.transfer_threads {
-                            progress_spinner(
+                            progress_spinner_widget(
                                 ui,
                                 &self.task_progress.get_task_progress(thread_number),
                                 Color32::WHITE,
@@ -193,13 +181,13 @@ impl AppView for BackupView {
 
                             ui.label(
                                 egui::RichText::new(task_message.message)
-                                    .font(egui::FontId::new(14.0, egui::FontFamily::Monospace))
+                                    .monospace()
                                     .color(msg_color),
                             );
 
                             ui.label(
                                 egui::RichText::new(task_message.path)
-                                    .font(egui::FontId::new(14.0, egui::FontFamily::Monospace))
+                                    .monospace()
                                     .color(Color32::LIGHT_GRAY),
                             );
 
@@ -216,7 +204,7 @@ impl AppView for BackupView {
                     ui.add(
                         egui::ProgressBar::new(progress).text(
                             egui::RichText::new(format!("{:.1} %", progress * 100.0))
-                                .font(egui::FontId::new(16.0, egui::FontFamily::Monospace))
+                                .monospace()
                                 .color(Color32::LIGHT_GRAY),
                         ),
                     );
@@ -234,34 +222,20 @@ impl AppView for BackupView {
                         self.task_progress.clone(),
                     );
 
+                    // Horizontal layout (run buttons).
                     ui.horizontal(|ui| {
                         if self.run_handle.is_running() {
                             if self.run_handle.is_canceled() {
-                                ui.label(
-                                    egui::RichText::new("Canceling ...")
-                                        .font(egui::FontId::proportional(16.0)),
-                                );
+                                ui.label("Canceling ...");
                             } else {
                                 // The cancel button.
-                                if ui
-                                    .button(
-                                        egui::RichText::new("Cancel")
-                                            .font(egui::FontId::proportional(16.0)),
-                                    )
-                                    .clicked()
-                                {
+                                if ui.button("Cancel").clicked() {
                                     self.run_handle.request_cancel();
                                 }
                             }
                         } else {
                             // The backup button.
-                            if ui
-                                .button(
-                                    egui::RichText::new("Start Backup")
-                                        .font(egui::FontId::proportional(16.0)),
-                                )
-                                .clicked()
-                            {
+                            if ui.button("Start Backup").clicked() {
                                 run(
                                     "Backup".to_string(),
                                     Box::new(|cuba, run_handle, profile| {
@@ -271,13 +245,7 @@ impl AppView for BackupView {
                             }
 
                             // The verify new button.
-                            if ui
-                                .button(
-                                    egui::RichText::new("Start Verify new")
-                                        .font(egui::FontId::proportional(16.0)),
-                                )
-                                .clicked()
-                            {
+                            if ui.button("Start Verify new").clicked() {
                                 run(
                                     "Verify".to_string(),
                                     Box::new(|cuba, run_handle, profile| {
@@ -289,13 +257,7 @@ impl AppView for BackupView {
                             }
 
                             // The verify all button.
-                            if ui
-                                .button(
-                                    egui::RichText::new("Start Verify all")
-                                        .font(egui::FontId::proportional(16.0)),
-                                )
-                                .clicked()
-                            {
+                            if ui.button("Start Verify all").clicked() {
                                 run(
                                     "Verify".to_string(),
                                     Box::new(|cuba, run_handle, profile| {
@@ -305,13 +267,7 @@ impl AppView for BackupView {
                             }
 
                             // The clean button.
-                            if ui
-                                .button(
-                                    egui::RichText::new("Start Clean")
-                                        .font(egui::FontId::proportional(16.0)),
-                                )
-                                .clicked()
-                            {
+                            if ui.button("Start Clean").clicked() {
                                 run(
                                     "Clean".to_string(),
                                     Box::new(|cuba, run_handle, profile| {

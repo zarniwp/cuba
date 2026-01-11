@@ -14,10 +14,15 @@ cargo add cuba-lib
 ## Usage
 
 ```rust
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 use crossbeam_channel::unbounded;
-use cuba_lib::{core::cuba::{Cuba, RunHandle}, shared::config::{EXAMPLE_CONFIG, save_config_to_file}};
-use cuba_lib::shared::{config::load_config_from_file, message::Message, msg_receiver::MsgReceiver};
+use cuba_lib::{core::cuba::{Cuba, RunHandle}};
+use cuba_lib::shared::config::EXAMPLE_CONFIG;
+use cuba_lib::shared::config::load_config_from_str;
+use cuba_lib::shared::config::save_config_to_file;
+use cuba_lib::shared::config::load_config_from_file;
+use cuba_lib::shared::message::Message;
+use cuba_lib::shared::msg_receiver::MsgReceiver;
 
 fn main() {
     // Create a channel for communication between your app and the Cuba instance.
@@ -34,8 +39,11 @@ fn main() {
 
     // Write the example config to "cuba.toml", if it doesn't exist.
     if !Path::new("cuba.toml").exists() {
-        let example_config = load_config_from_str(sender, path, EXAMPLE_CONFIG);
-        save_config_to_file(sender, "cuba.toml", example_config);
+        let example_config = load_config_from_str(sender, EXAMPLE_CONFIG);
+
+        if let Some(config) = example_config {
+            save_config_to_file(sender, "cuba.toml", &config);
+        }
     }
 
     // Load the configuration from the file "cuba.toml"
