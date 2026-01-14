@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use crossbeam_channel::Sender;
 use serde::{Deserialize, Serialize};
@@ -61,28 +61,11 @@ pub struct ConfigEntryKey {
     pub name: String,
 }
 
-// Defines a `ConfigEntry`.
-pub enum ConfigEntry<'a> {
-    LocalFS {
-        entry_type: &'a str,
-        name: &'a str,
-        fs: &'a LocalFS,
-    },
-    WebDAVFS {
-        entry_type: &'a str,
-        name: &'a str,
-        fs: &'a WebDAVFS,
-    },
-    Backup {
-        entry_type: &'a str,
-        name: &'a str,
-        backup: &'a BackupConfig,
-    },
-    Restore {
-        entry_type: &'a str,
-        name: &'a str,
-        restore: &'a RestoreConfig,
-    },
+/// Impl `Display` for `ConfigEntryKey`.
+impl fmt::Display for ConfigEntryKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}.{}", self.entry_type, self.name)
+    }
 }
 
 // Defines a `ConfigEntryMut`.

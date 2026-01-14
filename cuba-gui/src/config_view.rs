@@ -9,7 +9,7 @@ use cuba_lib::{
 
 use crate::{
     AppView,
-    egui_widgets::{NPathEditorState, npath_editor_widget},
+    egui_widgets::{NPathEditor, NPathEditorState},
 };
 
 /// Defines a `ConfigView`.
@@ -41,74 +41,135 @@ impl ConfigView {
             && let Some(entry_key) = &self.selected_config_entry_key
             && let Some(entry) = config.get_entry_mut(entry_key)
         {
+            let row_height = ui.spacing().interact_size.y;
+
             match entry {
                 ConfigEntryMut::LocalFS(local_fs) => {
-                    ui.heading("LocalFS");
+                    ui.heading(format!("LocalFS: {}", entry_key.name));
 
                     // Separator.
                     ui.separator();
 
-                    let editor_label = "Dir:";
-                    npath_editor_widget(
-                        ui,
-                        editor_label,
-                        &ConfigView::npath_editor_key(entry_key, editor_label),
-                        &mut local_fs.dir,
-                        &mut self.npath_editor_state,
-                    );
-                }
+                    let label_width = 40.0;
 
+                    // The Local table.
+                    egui_extras::StripBuilder::new(ui)
+                        .size(egui_extras::Size::exact(label_width))
+                        .size(egui_extras::Size::remainder())
+                        .horizontal(|mut strip| {
+                            strip.cell(|ui| {
+                                ui.label("Dir:");
+                            });
+                            strip.cell(|ui| {
+                                ui.add_sized(
+                                    [ui.available_width(), row_height],
+                                    NPathEditor::new(
+                                        &entry_key.to_string(),
+                                        &mut local_fs.dir,
+                                        &mut self.npath_editor_state,
+                                    ),
+                                );
+                            });
+                        });
+                }
                 ConfigEntryMut::WebDAVFS(webdav_fs) => {
-                    ui.heading("WebDAV");
+                    ui.heading(format!("WebDAV: {}", entry_key.name));
 
                     // Separator.
                     ui.separator();
 
-                    let editor_label = "Url:";
-                    npath_editor_widget(
-                        ui,
-                        editor_label,
-                        &ConfigView::npath_editor_key(entry_key, editor_label),
-                        &mut webdav_fs.url,
-                        &mut self.npath_editor_state,
-                    );
+                    let label_width = 100.0;
 
-                    ui.horizontal(|ui| {
-                        ui.label("User");
-                        ui.text_edit_singleline(&mut webdav_fs.user);
-                    });
+                    // The WebDAV table.
+                    egui_extras::StripBuilder::new(ui)
+                        .size(egui_extras::Size::exact(row_height))
+                        .size(egui_extras::Size::exact(row_height))
+                        .size(egui_extras::Size::exact(row_height))
+                        .size(egui_extras::Size::exact(row_height))
+                        .vertical(|mut rows| {
+                            // URL
+                            rows.strip(|strip| {
+                                strip
+                                    .size(egui_extras::Size::exact(label_width))
+                                    .size(egui_extras::Size::remainder())
+                                    .horizontal(|mut row| {
+                                        row.cell(|ui| {
+                                            ui.label("Url:");
+                                        });
+                                        row.cell(|ui| {
+                                            ui.add_sized(
+                                                [ui.available_width(), row_height],
+                                                NPathEditor::new(
+                                                    &entry_key.to_string(),
+                                                    &mut webdav_fs.url,
+                                                    &mut self.npath_editor_state,
+                                                ),
+                                            );
+                                        });
+                                    });
+                            });
 
-                    ui.horizontal(|ui| {
-                        ui.label("Password ID");
-                        ui.text_edit_singleline(&mut webdav_fs.password_id);
-                    });
+                            // User
+                            rows.strip(|strip| {
+                                strip
+                                    .size(egui_extras::Size::exact(label_width))
+                                    .size(egui_extras::Size::remainder())
+                                    .horizontal(|mut row| {
+                                        row.cell(|ui| {
+                                            ui.label("User:");
+                                        });
+                                        row.cell(|ui| {
+                                            ui.add_sized(
+                                                [ui.available_width(), row_height],
+                                                egui::TextEdit::singleline(&mut webdav_fs.user),
+                                            );
+                                        });
+                                    });
+                            });
 
-                    ui.horizontal(|ui| {
-                        ui.label("Timeout (secs)");
-                        ui.add(egui::DragValue::new(&mut webdav_fs.timeout_secs));
-                    });
+                            // Password ID
+                            rows.strip(|strip| {
+                                strip
+                                    .size(egui_extras::Size::exact(label_width))
+                                    .size(egui_extras::Size::remainder())
+                                    .horizontal(|mut row| {
+                                        row.cell(|ui| {
+                                            ui.label("User:");
+                                        });
+                                        row.cell(|ui| {
+                                            ui.add_sized(
+                                                [ui.available_width(), row_height],
+                                                egui::TextEdit::singleline(
+                                                    &mut webdav_fs.password_id,
+                                                ),
+                                            );
+                                        });
+                                    });
+                            });
+
+                            // Timeout
+                            rows.strip(|strip| {
+                                strip
+                                    .size(egui_extras::Size::exact(label_width))
+                                    .size(egui_extras::Size::remainder())
+                                    .horizontal(|mut row| {
+                                        row.cell(|ui| {
+                                            ui.label("User:");
+                                        });
+                                        row.cell(|ui| {
+                                            ui.add_sized(
+                                                [100.0, row_height],
+                                                egui::DragValue::new(&mut webdav_fs.timeout_secs),
+                                            );
+                                        });
+                                    });
+                            });
+                        });
                 }
-
-                ConfigEntryMut::Backup(backup) => {
-                    ui.heading("Backup");
-
-                    // Separator.
-                    ui.separator();
-
-                    ui.checkbox(&mut backup.encrypt, "Encrypt");
-                    ui.checkbox(&mut backup.compression, "Compression");
-
-                    if backup.encrypt {
-                        ui.text_edit_singleline(backup.password_id.get_or_insert_default());
-                    }
-                }
-                _ => {}
+                ConfigEntryMut::Backup(_backup) => {}
+                ConfigEntryMut::Restore(_restore) => {}
             }
         }
-    }
-
-    fn npath_editor_key(entry: &ConfigEntryKey, label: &str) -> String {
-        format!("{:?}.{}.{}", entry.entry_type, entry.name, label)
     }
 }
 

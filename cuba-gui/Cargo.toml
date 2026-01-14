@@ -22,3 +22,4 @@ secrecy = { workspace = true }
 eframe = "0.33.3"
 egui = "0.33.3"
 egui_dock = "0.18.0"
+egui_extras = "0.33.3"

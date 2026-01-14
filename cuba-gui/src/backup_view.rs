@@ -12,7 +12,7 @@ use egui::Color32;
 
 use crate::{
     AppView, UpdateHandler,
-    egui_widgets::progress_spinner_widget,
+    egui_widgets::ProgressSpinner,
     task_progress::{TaskMessageType, TaskProgress},
     util::make_cuba_runner,
 };
@@ -164,12 +164,13 @@ impl AppView for BackupView {
                     // The task message table.
                     egui::Grid::new("Tasks").show(ui, |ui| {
                         for thread_number in 0..config.transfer_threads {
-                            progress_spinner_widget(
-                                ui,
-                                &self.task_progress.get_task_progress(thread_number),
-                                Color32::WHITE,
-                                Color32::DARK_GRAY,
-                                16_f32,
+                            ui.add(
+                                ProgressSpinner::new(
+                                    &self.task_progress.get_task_progress(thread_number),
+                                )
+                                .size(16.0)
+                                .spinning_color(Color32::WHITE)
+                                .invalid_color(Color32::DARK_GRAY),
                             );
 
                             let task_message = self.task_progress.get_task_message(thread_number);

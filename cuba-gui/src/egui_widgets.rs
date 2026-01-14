@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use cuba_lib::shared::npath::{Abs, Dir, NPath};
-use egui::{Color32, Shape, Stroke, Vec2};
+use egui::{Color32, Vec2};
 
 /// Defines a `ProgressState`
 #[derive(Clone, Copy)]
@@ -58,50 +58,93 @@ impl Default for ProgressState {
     }
 }
 
-/// Draws a progress spinner
-pub fn progress_spinner_widget(
-    ui: &mut egui::Ui,
-    progress_state: &ProgressState,
+/// Defines a `ProgressSpinner`.
+pub struct ProgressSpinner<'a> {
+    state: &'a ProgressState,
+    size: f32,
     color_spinning: Color32,
     color_invalid: Color32,
-    size: f32,
-) {
-    let (rect, _) = ui.allocate_exact_size(Vec2::splat(size), egui::Sense::hover());
-    let painter = ui.painter();
-    let center = rect.center();
-    let radius = size * 0.4;
+}
 
-    let segments = 32; // smoothness.
-    let mut points = Vec::with_capacity(segments + 1);
+/// Methods of `ProgressSpinner`.
+impl<'a> ProgressSpinner<'a> {
+    /// Creates a new `ProgressSpinner`.
+    pub fn new(state: &'a ProgressState) -> Self {
+        Self {
+            state,
+            size: 24.0,
+            color_spinning: Color32::LIGHT_BLUE,
+            color_invalid: Color32::GRAY,
+        }
+    }
 
-    if !progress_state.valid {
-        // Draw a full gray circle.
-        for i in 0..=segments {
-            let t = i as f32 / segments as f32;
+    /// Sets the size of the spinner.
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = size;
+        self
+    }
+
+    /// Sets the color of the spinner.
+    pub fn spinning_color(mut self, color: Color32) -> Self {
+        self.color_spinning = color;
+        self
+    }
+
+    /// Sets the color of the spinner when invalid.
+    pub fn invalid_color(mut self, color: Color32) -> Self {
+        self.color_invalid = color;
+        self
+    }
+}
+
+/// Impl `egui::Widget` for `ProgressSpinner`.
+impl egui::Widget for ProgressSpinner<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let (rect, response) = ui.allocate_exact_size(Vec2::splat(self.size), egui::Sense::hover());
+
+        let painter = ui.painter();
+        let center = rect.center();
+        let radius = self.size * 0.4;
+        let segments = 32;
+
+        let mut points = Vec::with_capacity(segments + 1);
+
+        if !self.state.valid {
+            for i in 0..=segments {
+                let t = i as f32 / segments as f32;
+                let angle = t * std::f32::consts::TAU;
+                let dir = egui::vec2(angle.cos(), angle.sin());
+                points.push(center + dir * radius);
+            }
+
+            painter.add(egui::Shape::line(
+                points,
+                egui::Stroke::new(2.0, self.color_invalid),
+            ));
+        } else {
+            let t = (self.state.progress % self.state.duration) as f32 / self.state.duration as f32;
+
             let angle = t * std::f32::consts::TAU;
-            let dir = egui::vec2(angle.cos(), angle.sin());
-            points.push(center + dir * radius);
+            let start = angle - std::f32::consts::FRAC_PI_2;
+            let sweep = std::f32::consts::PI * 1.5;
+            let end = start + sweep;
+
+            for i in 0..=segments {
+                let t = i as f32 / segments as f32;
+                let a = start + (end - start) * t;
+                let dir = egui::vec2(a.cos(), a.sin());
+                points.push(center + dir * radius);
+            }
+
+            painter.add(egui::Shape::line(
+                points,
+                egui::Stroke::new(2.0, self.color_spinning),
+            ));
+
+            ui.ctx().request_repaint(); // keep animation alive
         }
 
-        painter.add(Shape::line(points, Stroke::new(2.0, color_invalid)));
-    } else {
-        // Draw progress spinner.
-        let t = (progress_state.progress % progress_state.duration) as f32
-            / progress_state.duration as f32;
-        let angle = t * std::f32::consts::TAU;
-
-        let start_angle = angle - std::f32::consts::FRAC_PI_2;
-        let sweep = std::f32::consts::PI * 1.5; // 270°
-        let end_angle = start_angle + sweep;
-
-        for i in 0..=segments {
-            let t = i as f32 / segments as f32;
-            let a = start_angle + (end_angle - start_angle) * t;
-            let dir = egui::vec2(a.cos(), a.sin());
-            points.push(center + dir * radius);
-        }
-
-        painter.add(Shape::line(points, Stroke::new(2.0, color_spinning)));
+        response
     }
 }
 
@@ -130,34 +173,57 @@ impl Default for NPathEditorState {
     }
 }
 
-/// Draws a npath editor
-pub fn npath_editor_widget(
-    ui: &mut egui::Ui,
-    label: &str,
-    key: &str,
-    path: &mut NPath<Abs, Dir>,
-    npath_state: &mut NPathEditorState,
-) {
-    ui.horizontal(|ui| {
-        ui.label(label);
+/// Defines a `NPathEditor`.
+pub struct NPathEditor<'a> {
+    key: &'a str,
+    path: &'a mut NPath<Abs, Dir>,
+    npath_state: &'a mut NPathEditorState,
+    desired_width: f32,
+}
 
+/// Methods of `NPathEditor`.
+impl<'a> NPathEditor<'a> {
+    /// Creates a new `NPathEditor`.
+    pub fn new(
+        key: &'a str,
+        path: &'a mut NPath<Abs, Dir>,
+        npath_state: &'a mut NPathEditorState,
+    ) -> Self {
+        Self {
+            key,
+            path,
+            npath_state,
+            desired_width: f32::INFINITY,
+        }
+    }
+
+    /// Sets the desired width of the editor.
+    pub fn desired_with(mut self, desired_width: f32) -> Self {
+        self.desired_width = desired_width;
+        self
+    }
+}
+
+/// Impl `egui::Widget` for `NPathEditor`.
+impl egui::Widget for NPathEditor<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         // Key must be the same or refresh.
-        if npath_state.key != key {
-            npath_state.key = key.to_owned();
-            npath_state.refresh = true;
+        if self.npath_state.key != self.key {
+            self.npath_state.key = self.key.to_owned();
+            self.npath_state.refresh = true;
         }
 
         // Refresh editor from source.
-        if npath_state.refresh {
-            npath_state.buffer = path.to_string();
-            npath_state.refresh = false;
+        if self.npath_state.refresh {
+            self.npath_state.buffer = self.path.to_string();
+            self.npath_state.refresh = false;
         }
 
         let valid;
 
-        match NPath::<Abs, Dir>::try_from(npath_state.buffer.as_str()) {
+        match NPath::<Abs, Dir>::try_from(self.npath_state.buffer.as_str()) {
             Ok(new_path) => {
-                *path = new_path;
+                *self.path = new_path;
                 valid = true;
             }
             Err(_) => {
@@ -166,11 +232,14 @@ pub fn npath_editor_widget(
         }
 
         let text_edit = if valid {
-            egui::TextEdit::singleline(&mut npath_state.buffer)
+            egui::TextEdit::singleline(&mut self.npath_state.buffer)
+                .desired_width(self.desired_width)
         } else {
-            egui::TextEdit::singleline(&mut npath_state.buffer).background_color(Color32::DARK_RED)
+            egui::TextEdit::singleline(&mut self.npath_state.buffer)
+                .background_color(Color32::DARK_RED)
+                .desired_width(self.desired_width)
         };
 
-        text_edit.show(ui);
-    });
+        ui.add(text_edit)
+    }
 }
