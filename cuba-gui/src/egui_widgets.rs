@@ -1,7 +1,10 @@
 #![allow(dead_code)]
 
-use cuba_lib::shared::npath::{Abs, Dir, NPath};
-use egui::{Color32, Vec2};
+use cuba_lib::shared::npath::NPath;
+use egui::{
+    Color32, Vec2,
+    ahash::{HashMap, HashMapExt},
+};
 
 /// Defines a `ProgressState`
 #[derive(Clone, Copy)]
@@ -148,80 +151,86 @@ impl egui::Widget for ProgressSpinner<'_> {
     }
 }
 
-/// Defines a `NPathEditorState`.
-pub struct NPathEditorState {
-    pub key: String,
-    pub refresh: bool,
-    pub buffer: String,
+/// Defines a `NPathEditorBuffer`.
+pub struct NPathEditorBuffer {
+    buffer: HashMap<String, String>,
 }
 
-/// Methods of `NPathEditorState`.
-impl NPathEditorState {
+/// Methods of `NPathEditorBuffer`.
+impl NPathEditorBuffer {
+    /// Creates a new `NPathEditorBuffer`.
     pub fn new() -> Self {
         Self {
-            key: String::new(),
-            refresh: true,
-            buffer: String::new(),
+            buffer: HashMap::new(),
         }
+    }
+
+    /// Clears the buffer.
+    pub fn clear(&mut self) {
+        self.buffer.clear()
     }
 }
 
-/// Impl of `Default` for `NPathEditorState`.
-impl Default for NPathEditorState {
+/// Impl of `Default` for `NPathEditorBuffer`.
+impl Default for NPathEditorBuffer {
     fn default() -> Self {
-        NPathEditorState::new()
+        NPathEditorBuffer::new()
     }
 }
 
 /// Defines a `NPathEditor`.
-pub struct NPathEditor<'a> {
+pub struct NPathEditor<'a, NpathK, NpathT> {
     key: &'a str,
-    path: &'a mut NPath<Abs, Dir>,
-    npath_state: &'a mut NPathEditorState,
+    path: &'a mut NPath<NpathK, NpathT>,
+    npath_buffer: &'a mut NPathEditorBuffer,
     desired_width: f32,
 }
 
 /// Methods of `NPathEditor`.
-impl<'a> NPathEditor<'a> {
+impl<'a, NpathK, NpathT> NPathEditor<'a, NpathK, NpathT> {
     /// Creates a new `NPathEditor`.
     pub fn new(
         key: &'a str,
-        path: &'a mut NPath<Abs, Dir>,
-        npath_state: &'a mut NPathEditorState,
+        path: &'a mut NPath<NpathK, NpathT>,
+        npath_buffer: &'a mut NPathEditorBuffer,
     ) -> Self {
         Self {
             key,
             path,
-            npath_state,
+            npath_buffer,
             desired_width: f32::INFINITY,
         }
     }
 
     /// Sets the desired width of the editor.
-    pub fn desired_with(mut self, desired_width: f32) -> Self {
+    pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = desired_width;
         self
     }
 }
 
 /// Impl `egui::Widget` for `NPathEditor`.
-impl egui::Widget for NPathEditor<'_> {
+impl<NpathK, NpathT> egui::Widget for NPathEditor<'_, NpathK, NpathT>
+where
+    for<'s> NPath<NpathK, NpathT>: TryFrom<&'s str>,
+{
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        // Key must be the same or refresh.
-        if self.npath_state.key != self.key {
-            self.npath_state.key = self.key.to_owned();
-            self.npath_state.refresh = true;
-        }
+        let buffer: &mut String = if let Some(buffer) = self.npath_buffer.buffer.get_mut(self.key) {
+            if buffer.is_empty() {
+                *buffer = self.path.to_string();
+            }
 
-        // Refresh editor from source.
-        if self.npath_state.refresh {
-            self.npath_state.buffer = self.path.to_string();
-            self.npath_state.refresh = false;
-        }
+            buffer
+        } else {
+            self.npath_buffer
+                .buffer
+                .insert(self.key.to_string(), self.path.to_string());
+            self.npath_buffer.buffer.get_mut(self.key).unwrap()
+        };
 
         let valid;
 
-        match NPath::<Abs, Dir>::try_from(self.npath_state.buffer.as_str()) {
+        match NPath::<NpathK, NpathT>::try_from(buffer.as_str()) {
             Ok(new_path) => {
                 *self.path = new_path;
                 valid = true;
@@ -232,14 +241,50 @@ impl egui::Widget for NPathEditor<'_> {
         }
 
         let text_edit = if valid {
-            egui::TextEdit::singleline(&mut self.npath_state.buffer)
-                .desired_width(self.desired_width)
+            egui::TextEdit::singleline(buffer).desired_width(self.desired_width)
         } else {
-            egui::TextEdit::singleline(&mut self.npath_state.buffer)
+            egui::TextEdit::singleline(buffer)
                 .background_color(Color32::DARK_RED)
                 .desired_width(self.desired_width)
         };
 
         ui.add(text_edit)
     }
+}
+
+/// Builds a table with labels and values.
+pub fn label_value_table(
+    ui: &mut egui::Ui,
+    rows: usize,
+    row_height: f32,
+    mut add_rows: impl FnMut(&mut egui_extras::Strip),
+) {
+    egui_extras::StripBuilder::new(ui)
+        .sizes(egui_extras::Size::exact(row_height), rows)
+        .vertical(|mut rows_strip| {
+            add_rows(&mut rows_strip);
+        });
+}
+
+/// Builds a row with a label and a value.
+pub fn build_row(
+    rows: &mut egui_extras::Strip,
+    label_width: egui_extras::Size,
+    label: &str,
+    value_width: egui_extras::Size,
+    add: impl FnOnce(&mut egui::Ui),
+) {
+    rows.strip(|strip| {
+        strip
+            .size(label_width)
+            .size(value_width)
+            .horizontal(|mut row| {
+                row.cell(|ui| {
+                    ui.label(label);
+                });
+                row.cell(|ui| {
+                    add(ui);
+                });
+            });
+    });
 }

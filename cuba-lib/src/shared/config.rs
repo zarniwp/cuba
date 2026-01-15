@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt, sync::Arc};
 
 use crossbeam_channel::Sender;
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 
 use crate::{send_error, send_info, shared::message::Message};
 
@@ -46,11 +47,18 @@ pub fn save_config_to_file(sender: Sender<Arc<dyn Message>>, path: &str, config:
 }
 
 // Defines a `ConfigEntryType`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Display, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ConfigEntryType {
+    #[strum(to_string = "filesystem.local")]
     LocalFS,
+
+    #[strum(to_string = "filesystem.webdav")]
     WebDAVFS,
+
+    #[strum(to_string = "backup")]
     Backup,
+
+    #[strum(to_string = "restore")]
     Restore,
 }
 
@@ -64,7 +72,7 @@ pub struct ConfigEntryKey {
 /// Impl `Display` for `ConfigEntryKey`.
 impl fmt::Display for ConfigEntryKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}.{}", self.entry_type, self.name)
+        write!(f, "{}.\"{}\"", self.entry_type, self.name)
     }
 }
 
@@ -137,6 +145,27 @@ impl Config {
         for name in self.restore.keys() {
             keys.push(ConfigEntryKey {
                 entry_type: ConfigEntryType::Restore,
+                name: name.clone(),
+            });
+        }
+
+        keys
+    }
+
+    /// Lists all fs entries in the config.
+    pub fn list_fs_keys(&self) -> Vec<ConfigEntryKey> {
+        let mut keys = Vec::new();
+
+        for name in self.filesystem.local.keys() {
+            keys.push(ConfigEntryKey {
+                entry_type: ConfigEntryType::LocalFS,
+                name: name.clone(),
+            });
+        }
+
+        for name in self.filesystem.webdav.keys() {
+            keys.push(ConfigEntryKey {
+                entry_type: ConfigEntryType::WebDAVFS,
                 name: name.clone(),
             });
         }
