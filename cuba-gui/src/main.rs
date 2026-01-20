@@ -1,24 +1,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 mod backup_view;
-mod config_view;
-mod egui_widgets;
-mod keyring_view;
-mod msg_log_views;
-mod password_ids;
 mod restore_view;
+mod config_view;
+mod keyring_view;
+mod egui_widgets;
+mod msg_log_views;
 mod task_progress;
+mod password_ids;
 mod util;
 
 use std::sync::{Arc, RwLock};
 
 use crate::{
-    backup_view::BackupView,
-    config_view::ConfigView,
-    keyring_view::KeyringView,
-    msg_log_views::{MsgLogLevel, MsgLogView},
-    password_ids::PasswordIDs,
-    restore_view::RestoreView,
+    backup_view::BackupView, config_view::ConfigView, keyring_view::KeyringView, msg_log_views::{MsgLogLevel, MsgLogView}, password_ids::PasswordIDs, restore_view::RestoreView
 };
 use crossbeam_channel::{Sender, unbounded};
 use cuba_lib::{
@@ -133,6 +128,7 @@ impl CubaGui {
     fn new(creation_ctx: &eframe::CreationContext<'_>) -> Self {
         setup_fonts(&creation_ctx.egui_ctx);
 
+        // Set fonts.
         let mut style = (*creation_ctx.egui_ctx.style()).clone();
 
         style.text_styles = [
@@ -183,12 +179,12 @@ impl CubaGui {
         let restore_view = Arc::new(RwLock::new(RestoreView::new(creation_ctx.egui_ctx.clone())));
         let config_view = Arc::new(RwLock::new(ConfigView::new(
             cuba.clone(),
-            password_ids.clone(),
+            password_ids.clone()
         )));
 
         let keyring_view = Arc::new(RwLock::new(KeyringView::new(
             cuba.clone(),
-            password_ids.clone(),
+            password_ids.clone()
         )));
 
         let infos_view = Arc::new(RwLock::new(MsgLogView::new(
