@@ -252,6 +252,84 @@ where
     }
 }
 
+/// Defines a `GlobListWidget`.
+pub struct GlobListWidget<'a> {
+    globs: &'a mut Option<Vec<String>>,
+    enabled_label: &'a str,
+    hint: Option<&'a str>,
+}
+
+/// Methods of `GlobListWidget`.
+impl<'a> GlobListWidget<'a> {
+    pub fn new(globs: &'a mut Option<Vec<String>>, enabled_label: &'a str) -> Self {
+        Self {
+            globs,
+            enabled_label,
+            hint: None,
+        }
+    }
+
+    pub fn hint_text(mut self, hint: &'a str) -> Self {
+        self.hint = Some(hint);
+        self
+    }
+}
+
+/// Impl `egui::Widget` for `GlobListWidget`.
+impl<'a> egui::Widget for GlobListWidget<'a> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        ui.vertical(|ui| {
+            let mut enabled = self.globs.is_some();
+
+            if ui.checkbox(&mut enabled, self.enabled_label).clicked() {
+                if enabled {
+                    *self.globs = Some(Vec::new());
+                } else {
+                    *self.globs = None;
+                }
+            }
+
+            if let Some(globs) = self.globs {
+                ui.add_space(4.0);
+
+                egui::Frame::group(ui.style()).show(ui, |ui| {
+                    let mut remove_index: Option<usize> = None;
+
+                    for (idx, glob) in globs.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            let edit =
+                                egui::TextEdit::singleline(glob).desired_width(f32::INFINITY);
+
+                            let edit = if let Some(hint) = self.hint {
+                                edit.hint_text(hint)
+                            } else {
+                                edit
+                            };
+
+                            ui.add(edit);
+
+                            if ui.button("✖").on_hover_text("Remove").clicked() {
+                                remove_index = Some(idx);
+                            }
+                        });
+                    }
+
+                    if let Some(idx) = remove_index {
+                        globs.remove(idx);
+                    }
+
+                    ui.separator();
+
+                    if ui.button("+ Add glob").clicked() {
+                        globs.push(String::new());
+                    }
+                });
+            }
+        })
+        .response
+    }
+}
+
 /// Builds a table with labels and values.
 pub fn label_value_table(
     ui: &mut egui::Ui,

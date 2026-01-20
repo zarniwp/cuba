@@ -12,13 +12,14 @@ use cuba_lib::{
 
 use crate::{
     AppView,
-    egui_widgets::{NPathEditor, NPathEditorBuffer, build_row, label_value_table},
+    egui_widgets::{GlobListWidget, NPathEditor, NPathEditorBuffer, build_row, label_value_table},
+    password_ids::PasswordIDs,
 };
 
 /// Defines a `ConfigView`.
 pub struct ConfigView {
-    egui_context: egui::Context,
     cuba: Arc<RwLock<Cuba>>,
+    password_ids: Arc<PasswordIDs>,
     selected_config_entry_key: Option<ConfigEntryKey>,
     npath_editor_buffer: NPathEditorBuffer,
 }
@@ -26,10 +27,10 @@ pub struct ConfigView {
 /// Methods of `ConfigView`.
 impl ConfigView {
     /// Creates a new `ConfigView`.
-    pub fn new(egui_context: egui::Context, cuba: Arc<RwLock<Cuba>>) -> Self {
+    pub fn new(cuba: Arc<RwLock<Cuba>>, password_ids: Arc<PasswordIDs>) -> Self {
         Self {
-            egui_context,
             cuba,
+            password_ids,
             selected_config_entry_key: None,
             npath_editor_buffer: NPathEditorBuffer::new(),
         }
@@ -46,19 +47,23 @@ impl ConfigView {
             if let Some(entry_key) = &self.selected_config_entry_key
                 && let Some(entry) = config.get_entry_mut(entry_key)
             {
+                // Set row height.
                 let row_height: f32 = 25.0;
 
                 match entry {
                     ConfigEntryMut::LocalFS(local_fs) => {
+                        // The heading.
                         ui.heading(format!("LocalFS: {}", entry_key.name));
 
                         // Separator.
                         ui.separator();
 
+                        // Set label width.
                         let label_width = egui_extras::Size::exact(40.0);
 
                         // The local fs table.
                         label_value_table(ui, 1, row_height, |rows| {
+                            // The dir row.
                             build_row(
                                 rows,
                                 label_width,
@@ -75,16 +80,18 @@ impl ConfigView {
                         });
                     }
                     ConfigEntryMut::WebDAVFS(webdav_fs) => {
+                        // The heading.
                         ui.heading(format!("WebDAV: {}", entry_key.name));
 
                         // Separator.
                         ui.separator();
 
+                        // The label width.
                         let label_width = egui_extras::Size::exact(120.0);
 
                         // The WebDAV fs table.
                         label_value_table(ui, 4, row_height, |rows| {
-                            // Url.
+                            // The url row.
                             build_row(
                                 rows,
                                 label_width,
@@ -99,7 +106,7 @@ impl ConfigView {
                                 },
                             );
 
-                            // User.
+                            // The user row.
                             build_row(
                                 rows,
                                 label_width,
@@ -113,21 +120,28 @@ impl ConfigView {
                                 },
                             );
 
-                            // Password ID.
+                            // The password id row.
                             build_row(
                                 rows,
                                 label_width,
                                 "Password ID:",
                                 egui_extras::Size::remainder(),
                                 |ui| {
-                                    ui.add(
-                                        egui::TextEdit::singleline(&mut webdav_fs.password_id)
-                                            .desired_width(f32::INFINITY),
-                                    );
+                                    egui::ComboBox::from_id_salt("PasswordID")
+                                        .selected_text(webdav_fs.password_id.to_string())
+                                        .show_ui(ui, |ui| {
+                                            for password_id in &self.password_ids.get() {
+                                                ui.selectable_value(
+                                                    &mut webdav_fs.password_id,
+                                                    password_id.to_string(),
+                                                    password_id,
+                                                );
+                                            }
+                                        });
                                 },
                             );
 
-                            // Timeout.
+                            // The timeout row.
                             build_row(
                                 rows,
                                 label_width,
@@ -140,16 +154,18 @@ impl ConfigView {
                         });
                     }
                     ConfigEntryMut::Backup(backup) => {
+                        // The heading.
                         ui.heading(format!("Backup: {}", entry_key.name));
 
                         // Separator.
                         ui.separator();
 
+                        // The label width.
                         let label_width = egui_extras::Size::exact(120.0);
 
-                        // The Backup table.
-                        label_value_table(ui, 6, row_height, |rows| {
-                            // Source fs.
+                        // The backup table.
+                        label_value_table(ui, 9, row_height, |rows| {
+                            // The source fs row.
                             build_row(
                                 rows,
                                 label_width,
@@ -170,7 +186,7 @@ impl ConfigView {
                                 },
                             );
 
-                            // Destination fs.
+                            // The destination fs row.
                             build_row(
                                 rows,
                                 label_width,
@@ -191,7 +207,7 @@ impl ConfigView {
                                 },
                             );
 
-                            // Source dir.
+                            // The source dir row.
                             build_row(
                                 rows,
                                 label_width,
@@ -206,7 +222,7 @@ impl ConfigView {
                                 },
                             );
 
-                            // Destination dir.
+                            // The destination dir row.
                             build_row(
                                 rows,
                                 label_width,
@@ -221,7 +237,7 @@ impl ConfigView {
                                 },
                             );
 
-                            // Compression.
+                            // The compression row.
                             build_row(
                                 rows,
                                 label_width,
@@ -232,7 +248,7 @@ impl ConfigView {
                                 },
                             );
 
-                            // Encryption.
+                            // The encryption row.
                             build_row(
                                 rows,
                                 label_width,
@@ -240,6 +256,65 @@ impl ConfigView {
                                 egui_extras::Size::remainder(),
                                 |ui| {
                                     ui.checkbox(&mut backup.encrypt, "");
+                                },
+                            );
+
+                            // The password id row.
+                            if backup.encrypt {
+                                let password_id =
+                                    backup.password_id.get_or_insert_with(String::new);
+
+                                build_row(
+                                    rows,
+                                    label_width,
+                                    "Password ID:",
+                                    egui_extras::Size::remainder(),
+                                    |ui| {
+                                        egui::ComboBox::from_id_salt("PasswordID")
+                                            .selected_text(password_id.as_str())
+                                            .show_ui(ui, |ui| {
+                                                for id in &self.password_ids.get() {
+                                                    ui.selectable_value(
+                                                        password_id,
+                                                        id.clone(),
+                                                        id,
+                                                    );
+                                                }
+                                            });
+                                    },
+                                );
+                            } else {
+                                backup.password_id = None;
+                            }
+
+                            let mut a = String::new();
+
+                            // The includes row.
+                            build_row(
+                                rows,
+                                label_width,
+                                "Includes:",
+                                egui_extras::Size::remainder(),
+                                |ui| {
+                                    ui.add(
+                                        egui::TextEdit::multiline(&mut a)
+                                            .desired_width(f32::INFINITY)
+                                            .desired_rows(5),
+                                    );
+                                },
+                            );
+
+                            // The excludes row.
+                            build_row(
+                                rows,
+                                label_width,
+                                "Excludes:",
+                                egui_extras::Size::remainder(),
+                                |ui| {
+                                    ui.add(
+                                        GlobListWidget::new(&mut backup.exclude, "Enable excludes")
+                                            .hint_text("**/target/**"),
+                                    );
                                 },
                             );
                         });
@@ -281,8 +356,11 @@ impl AppView for ConfigView {
                     .show(ui, |ui| {
                         if let Some(config) = self.cuba.read().unwrap().config() {
                             for entry_key in config.list_entry_keys() {
+                                let selected =
+                                    self.selected_config_entry_key == Some(entry_key.clone());
+
                                 if ui
-                                    .selectable_label(false, format!("{}", entry_key))
+                                    .selectable_label(selected, format!("{}", entry_key))
                                     .clicked()
                                 {
                                     self.selected_config_entry_key = Some(entry_key);

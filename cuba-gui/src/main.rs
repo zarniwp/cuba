@@ -3,7 +3,9 @@
 mod backup_view;
 mod config_view;
 mod egui_widgets;
+mod keyring_view;
 mod msg_log_views;
+mod password_ids;
 mod restore_view;
 mod task_progress;
 mod util;
@@ -13,7 +15,9 @@ use std::sync::{Arc, RwLock};
 use crate::{
     backup_view::BackupView,
     config_view::ConfigView,
+    keyring_view::KeyringView,
     msg_log_views::{MsgLogLevel, MsgLogView},
+    password_ids::PasswordIDs,
     restore_view::RestoreView,
 };
 use crossbeam_channel::{Sender, unbounded};
@@ -48,6 +52,7 @@ fn setup_fonts(ctx: &egui::Context) {
 }
 
 fn main() -> eframe::Result<()> {
+    // Set egui options.
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(egui::vec2(1200.0, 800.0))
@@ -166,6 +171,9 @@ impl CubaGui {
 
         let cuba = Arc::new(RwLock::new(Cuba::new(sender.clone())));
 
+        let password_ids = Arc::new(PasswordIDs::new(cuba.clone()));
+        password_ids.update();
+
         let backup_view = Arc::new(RwLock::new(BackupView::new(
             creation_ctx.egui_ctx.clone(),
             sender.clone(),
@@ -174,9 +182,15 @@ impl CubaGui {
         )));
         let restore_view = Arc::new(RwLock::new(RestoreView::new(creation_ctx.egui_ctx.clone())));
         let config_view = Arc::new(RwLock::new(ConfigView::new(
-            creation_ctx.egui_ctx.clone(),
             cuba.clone(),
+            password_ids.clone(),
         )));
+
+        let keyring_view = Arc::new(RwLock::new(KeyringView::new(
+            cuba.clone(),
+            password_ids.clone(),
+        )));
+
         let infos_view = Arc::new(RwLock::new(MsgLogView::new(
             creation_ctx.egui_ctx.clone(),
             MsgLogLevel::Info,
@@ -197,6 +211,7 @@ impl CubaGui {
             backup_view,
             restore_view,
             config_view,
+            keyring_view,
             infos_view,
             warnings_view,
             errors_view,
@@ -248,13 +263,14 @@ impl CubaGui {
         surface.push_to_first_leaf(app_views[0].clone());
         surface.push_to_first_leaf(app_views[1].clone());
         surface.push_to_first_leaf(app_views[2].clone());
+        surface.push_to_first_leaf(app_views[3].clone());
 
-        let bottom = surface.split_below(NodeIndex::root(), 0.6, vec![app_views[3].clone()]);
+        let bottom = surface.split_below(NodeIndex::root(), 0.6, vec![app_views[4].clone()]);
 
         surface.split_right(
             bottom[1],
             0.5,
-            vec![app_views[5].clone(), app_views[4].clone()],
+            vec![app_views[6].clone(), app_views[5].clone()],
         );
     }
 

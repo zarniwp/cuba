@@ -62,6 +62,8 @@ pub enum PasswordCommands {
         /// The password id.
         id: String,
     },
+    /// Lists the password ids.
+    List,
 }
 
 #[derive(Subcommand)]

@@ -2,6 +2,7 @@
 
 use crossbeam_channel::Sender;
 use secrecy::SecretString;
+use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 
@@ -21,7 +22,7 @@ use super::fs::{
     local_fs::LocalFS,
     webdav_fs::WebDAVFS,
 };
-use super::keyring::{get_password, remove_password, store_password};
+
 use super::restore::run_restore;
 use super::verify::run_verify;
 
@@ -37,7 +38,7 @@ fn create_fs_mount(
 
         Ok(FSMount::new(fs, abs_dir_path))
     } else if let Some(webdav_fs) = config.filesystem.webdav.get(fs) {
-        match get_password(&webdav_fs.password_id) {
+        match crate::core::keyring::get_password(&webdav_fs.password_id) {
             Ok(password) => {
                 let fs = Arc::new(RwLock::new(WebDAVFS::new(
                     &webdav_fs.user,
@@ -145,33 +146,46 @@ impl Cuba {
 
     /// Sets a password for the given id.
     pub fn set_password(&self, id: &str, password: &SecretString) {
-        if let Some(config) = self.requires_config() {
-            if config.has_password_id(id) {
-                match store_password(id, password) {
-                    Ok(()) => {
-                        send_info!(self.sender, "Password for id {:?} stored", id);
-                    }
-                    Err(err) => {
-                        send_error!(self.sender, err)
-                    }
-                }
-            } else {
-                send_error!(
-                    self.sender,
-                    StringError::new(format!("No password-id {:?} found in config", id))
-                );
+        match crate::core::keyring::store_password(id, password) {
+            Ok(()) => {
+                send_info!(self.sender, "Password for id {:?} stored", id);
+            }
+            Err(err) => {
+                send_error!(self.sender, err)
             }
         }
     }
 
     /// Deletes the password for the given id.
     pub fn delete_password(&self, id: &str) {
-        match remove_password(id) {
+        match crate::core::keyring::remove_password(id) {
             Ok(()) => {
                 send_info!(self.sender, "Password for id {:?} deleted", id);
             }
             Err(err) => {
                 send_error!(self.sender, err)
+            }
+        }
+    }
+
+    /// Returns the password for the given id.
+    pub fn get_password(&self, id: &str) -> Option<SecretString> {
+        match crate::core::keyring::get_password(id) {
+            Ok(password) => Some(password),
+            Err(err) => {
+                send_error!(self.sender, err);
+                None
+            }
+        }
+    }
+
+    /// Returns all password ids.
+    pub fn get_password_ids(&self) -> Option<HashSet<String>> {
+        match crate::core::keyring::get_password_ids() {
+            Ok(password_ids) => Some(password_ids),
+            Err(err) => {
+                send_error!(self.sender, err);
+                None
             }
         }
     }

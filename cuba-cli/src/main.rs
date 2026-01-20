@@ -259,6 +259,11 @@ fn main() {
                     PasswordCommands::Delete { id } => {
                         cuba.delete_password(id);
                     }
+                    PasswordCommands::List => {
+                        if let Some(password_ids) = cuba.get_password_ids() {
+                            println!("{:?}", password_ids);
+                        }
+                    }
                 },
                 MainCommands::Config { command } => match command {
                     ConfigCommands::Example { command } => match command {
