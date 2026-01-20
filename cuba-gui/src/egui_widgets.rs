@@ -255,23 +255,12 @@ where
 /// Defines a `GlobListWidget`.
 pub struct GlobListWidget<'a> {
     globs: &'a mut Option<Vec<String>>,
-    enabled_label: &'a str,
-    hint: Option<&'a str>,
 }
 
 /// Methods of `GlobListWidget`.
 impl<'a> GlobListWidget<'a> {
-    pub fn new(globs: &'a mut Option<Vec<String>>, enabled_label: &'a str) -> Self {
-        Self {
-            globs,
-            enabled_label,
-            hint: None,
-        }
-    }
-
-    pub fn hint_text(mut self, hint: &'a str) -> Self {
-        self.hint = Some(hint);
-        self
+    pub fn new(globs: &'a mut Option<Vec<String>>) -> Self {
+        Self { globs }
     }
 }
 
@@ -281,7 +270,8 @@ impl<'a> egui::Widget for GlobListWidget<'a> {
         ui.vertical(|ui| {
             let mut enabled = self.globs.is_some();
 
-            if ui.checkbox(&mut enabled, self.enabled_label).clicked() {
+            // Enabled?
+            if ui.checkbox(&mut enabled, "Enable").clicked() {
                 if enabled {
                     *self.globs = Some(Vec::new());
                 } else {
@@ -295,31 +285,28 @@ impl<'a> egui::Widget for GlobListWidget<'a> {
                 egui::Frame::group(ui.style()).show(ui, |ui| {
                     let mut remove_index: Option<usize> = None;
 
-                    for (idx, glob) in globs.iter_mut().enumerate() {
+                    for (index, glob) in globs.iter_mut().enumerate() {
                         ui.horizontal(|ui| {
-                            let edit =
-                                egui::TextEdit::singleline(glob).desired_width(f32::INFINITY);
+                            // Glob edit.
+                            let available_width = ui.available_width() - 50.0;
+                            ui.add(egui::TextEdit::singleline(glob).desired_width(available_width));
 
-                            let edit = if let Some(hint) = self.hint {
-                                edit.hint_text(hint)
-                            } else {
-                                edit
-                            };
-
-                            ui.add(edit);
-
-                            if ui.button("✖").on_hover_text("Remove").clicked() {
-                                remove_index = Some(idx);
+                            // Remove glob button.
+                            if ui.button("✖").clicked() {
+                                remove_index = Some(index);
                             }
                         });
                     }
 
-                    if let Some(idx) = remove_index {
-                        globs.remove(idx);
+                    // Remove glob.
+                    if let Some(index) = remove_index {
+                        globs.remove(index);
                     }
 
+                    // Separator.
                     ui.separator();
 
+                    // Add glob button.
                     if ui.button("+ Add glob").clicked() {
                         globs.push(String::new());
                     }

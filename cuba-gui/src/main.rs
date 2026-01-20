@@ -1,19 +1,24 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 mod backup_view;
-mod restore_view;
 mod config_view;
-mod keyring_view;
 mod egui_widgets;
+mod keyring_view;
 mod msg_log_views;
-mod task_progress;
 mod password_ids;
+mod restore_view;
+mod task_progress;
 mod util;
 
 use std::sync::{Arc, RwLock};
 
 use crate::{
-    backup_view::BackupView, config_view::ConfigView, keyring_view::KeyringView, msg_log_views::{MsgLogLevel, MsgLogView}, password_ids::PasswordIDs, restore_view::RestoreView
+    backup_view::BackupView,
+    config_view::ConfigView,
+    keyring_view::KeyringView,
+    msg_log_views::{MsgLogLevel, MsgLogView},
+    password_ids::PasswordIDs,
+    restore_view::RestoreView,
 };
 use crossbeam_channel::{Sender, unbounded};
 use cuba_lib::{
@@ -155,48 +160,62 @@ impl CubaGui {
         ]
         .into();
 
+        // Set style.
         creation_ctx.egui_ctx.set_style(style);
 
+        // Sender and receiver for messages between the GUI and the Cuba instance.
         let (sender, receiver) = unbounded::<Arc<dyn Message>>();
 
+        // The message dispatcher.
         let mut msg_dispatcher = MsgDispatcher::new(receiver.clone());
-
         msg_dispatcher.start();
-
         let arc_msg_dispatcher = Arc::new(msg_dispatcher);
 
+        // The Cuba instance.
         let cuba = Arc::new(RwLock::new(Cuba::new(sender.clone())));
 
+        // The password ids.
         let password_ids = Arc::new(PasswordIDs::new(cuba.clone()));
         password_ids.update();
 
+        // The backup view.
         let backup_view = Arc::new(RwLock::new(BackupView::new(
             creation_ctx.egui_ctx.clone(),
             sender.clone(),
             cuba.clone(),
             arc_msg_dispatcher.clone(),
         )));
+
+        // The restore view.
         let restore_view = Arc::new(RwLock::new(RestoreView::new(creation_ctx.egui_ctx.clone())));
+
+        // The config view.
         let config_view = Arc::new(RwLock::new(ConfigView::new(
             cuba.clone(),
-            password_ids.clone()
+            password_ids.clone(),
         )));
 
+        // The keyring view.
         let keyring_view = Arc::new(RwLock::new(KeyringView::new(
             cuba.clone(),
-            password_ids.clone()
+            password_ids.clone(),
         )));
 
+        // The infos view.
         let infos_view = Arc::new(RwLock::new(MsgLogView::new(
             creation_ctx.egui_ctx.clone(),
             MsgLogLevel::Info,
             arc_msg_dispatcher.clone(),
         )));
+
+        // The warnings view.
         let warnings_view = Arc::new(RwLock::new(MsgLogView::new(
             creation_ctx.egui_ctx.clone(),
             MsgLogLevel::Warning,
             arc_msg_dispatcher.clone(),
         )));
+
+        // The errors view.
         let errors_view = Arc::new(RwLock::new(MsgLogView::new(
             creation_ctx.egui_ctx.clone(),
             MsgLogLevel::Error,
@@ -243,6 +262,19 @@ impl CubaGui {
         }
     }
 
+    // Set the active tab.
+    fn set_active_view(&mut self, app_view: &Arc<RwLock<dyn AppView>>) {
+        let view_location =
+            self.dock_state
+                .find_tab_from(|existing_view: &Arc<RwLock<dyn AppView>>| {
+                    Arc::ptr_eq(existing_view, app_view)
+                });
+
+        if let Some(view_location) = view_location {
+            self.dock_state.set_active_tab(view_location);
+        }
+    }
+
     /// Reset the default layout of the GUI.
     pub fn reset_default_layout(&mut self) {
         self.dock_state = egui_dock::DockState::new(Vec::new());
@@ -275,6 +307,12 @@ impl CubaGui {
         if let Some(config) = load_config_from_file(self.sender.clone(), "cuba.toml") {
             self.cuba.write().unwrap().set_config(config);
         }
+
+        // Active view.
+        let active_view = self.app_views[0].clone();
+
+        // Set active view.
+        self.set_active_view(&active_view);
     }
 }
 

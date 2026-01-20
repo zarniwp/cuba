@@ -287,34 +287,25 @@ impl ConfigView {
                                 backup.password_id = None;
                             }
 
-                            let mut a = String::new();
-
-                            // The includes row.
+                            // The include row.
                             build_row(
                                 rows,
                                 label_width,
-                                "Includes:",
+                                "Include:",
                                 egui_extras::Size::remainder(),
                                 |ui| {
-                                    ui.add(
-                                        egui::TextEdit::multiline(&mut a)
-                                            .desired_width(f32::INFINITY)
-                                            .desired_rows(5),
-                                    );
+                                    ui.add(GlobListWidget::new(&mut backup.include));
                                 },
                             );
 
-                            // The excludes row.
+                            // The exclude row.
                             build_row(
                                 rows,
                                 label_width,
-                                "Excludes:",
+                                "Exclude:",
                                 egui_extras::Size::remainder(),
                                 |ui| {
-                                    ui.add(
-                                        GlobListWidget::new(&mut backup.exclude, "Enable excludes")
-                                            .hint_text("**/target/**"),
-                                    );
+                                    ui.add(GlobListWidget::new(&mut backup.exclude));
                                 },
                             );
                         });
@@ -374,10 +365,12 @@ impl AppView for ConfigView {
             ui.separator();
 
             // Vertical layout (config entry content).
-            ui.vertical(|ui| {
-                ui.set_height(height);
+            egui::ScrollArea::both().show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.set_height(height);
 
-                self.render_entry_editor(ui);
+                    self.render_entry_editor(ui);
+                });
             });
         });
     }
