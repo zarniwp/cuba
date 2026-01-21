@@ -69,7 +69,7 @@ fn update_password_ids(id: &str, operation: Operation) -> Result<(), KeyringErro
     let entry = keyring_entry(USER_PASSWORD_IDS)?;
 
     let mut set: HashSet<String> = match entry.get_secret() {
-        Ok(bytes) => bincode::deserialize(&bytes)
+        Ok(bytes) => wincode::deserialize(&bytes)
             .map_err(|err| KeyringError::Deserialize(err.to_string()))?,
         Err(_) => HashSet::new(),
     };
@@ -83,7 +83,7 @@ fn update_password_ids(id: &str, operation: Operation) -> Result<(), KeyringErro
         }
     }
 
-    let bytes = bincode::serialize(&set).map_err(|err| KeyringError::Serialize(err.to_string()))?;
+    let bytes = wincode::serialize(&set).map_err(|err| KeyringError::Serialize(err.to_string()))?;
 
     entry
         .set_secret(&bytes)
@@ -132,7 +132,7 @@ pub fn get_password_ids() -> Result<HashSet<String>, KeyringError> {
     let entry = keyring_entry(USER_PASSWORD_IDS)?;
 
     let set = match entry.get_secret() {
-        Ok(bytes) => bincode::deserialize(&bytes)
+        Ok(bytes) => wincode::deserialize(&bytes)
             .map_err(|err| KeyringError::Deserialize(err.to_string()))?,
         Err(_) => HashSet::new(),
     };
