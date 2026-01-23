@@ -62,6 +62,12 @@ pub enum ConfigEntryType {
     Restore,
 }
 
+/// Defines Methods for `ConfigEntryType`.
+impl ConfigEntryType {
+    /// Returns all `ConfigEntryType`s.
+    pub const ALL: [Self; 4] = [Self::LocalFS, Self::WebDAVFS, Self::Backup, Self::Restore];
+}
+
 // Defines a `ConfigEntryKey`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConfigEntryKey {
@@ -195,6 +201,48 @@ impl Config {
             }
         }
     }
+
+    /// Adds a new entry to the config.
+    pub fn add_new_entry(&mut self, entry_type: &ConfigEntryType, name: &str) {
+        match entry_type {
+            ConfigEntryType::LocalFS => {
+                self.filesystem
+                    .local
+                    .insert(name.to_string(), LocalFS::default());
+            }
+            ConfigEntryType::WebDAVFS => {
+                self.filesystem
+                    .webdav
+                    .insert(name.to_string(), WebDAVFS::default());
+            }
+            ConfigEntryType::Backup => {
+                self.backup
+                    .insert(name.to_string(), BackupConfig::default());
+            }
+            ConfigEntryType::Restore => {
+                self.restore
+                    .insert(name.to_string(), RestoreConfig::default());
+            }
+        }
+    }
+
+    /// Deletes the entry with the given key.
+    pub fn delete_entry(&mut self, key: &ConfigEntryKey) {
+        match key.entry_type {
+            ConfigEntryType::LocalFS => {
+                self.filesystem.local.remove(&key.name);
+            }
+            ConfigEntryType::WebDAVFS => {
+                self.filesystem.webdav.remove(&key.name);
+            }
+            ConfigEntryType::Backup => {
+                self.backup.remove(&key.name);
+            }
+            ConfigEntryType::Restore => {
+                self.restore.remove(&key.name);
+            }
+        }
+    }
 }
 
 /// Defines a `FilesystemConfig`.
@@ -219,14 +267,14 @@ impl FilesystemConfig {
 }
 
 // Defines a `LocalFS`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct LocalFS {
     /// Directory.
     pub dir: NPath<Abs, Dir>,
 }
 
 /// Defines a `WebDAVFS`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct WebDAVFS {
     /// Url.
     pub url: NPath<Abs, Dir>,
@@ -242,7 +290,7 @@ pub struct WebDAVFS {
 }
 
 /// Defines a `BackupConfig`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct BackupConfig {
     /// The source filesystem.
     pub src_fs: String,
@@ -282,7 +330,7 @@ impl BackupConfig {
 }
 
 /// Defines a `RestoreConfig`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct RestoreConfig {
     /// The source filesystem.
     pub src_fs: String,

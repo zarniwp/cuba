@@ -58,6 +58,7 @@ impl AppView for BackupView {
 
     /// Renders the view for egui.
     fn ui(&mut self, ui: &mut egui::Ui) {
+        // Set height.
         let height = ui.available_height();
 
         // Horizontal layout (profile list, profile content).
@@ -98,6 +99,7 @@ impl AppView for BackupView {
 
             // Vertical layout (profile content).
             ui.vertical(|ui| {
+                // Set height.
                 ui.set_height(height);
 
                 if let Some(config) = self.cuba.read().unwrap().config() {

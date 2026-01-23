@@ -46,7 +46,7 @@ impl AppView for KeyringView {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let height = ui.available_height();
 
-        // Horizontal layout (entry list, content).
+        // Horizontal layout (entry list, entry content).
         ui.horizontal(|ui| {
             // Vertical layout (heading, entry list).
             ui.vertical(|ui| {
@@ -63,6 +63,7 @@ impl AppView for KeyringView {
                 // Entry list.
                 egui::ScrollArea::vertical()
                     .auto_shrink([false; 2])
+                    .id_salt("Entries")
                     .show(ui, |ui| {
                         for id in self.password_ids.get() {
                             let selected = self.password_id == id;
@@ -90,8 +91,31 @@ impl AppView for KeyringView {
             ui.vertical(|ui| {
                 ui.set_height(height);
 
-                // Heading.
-                ui.heading(self.password_id.to_string());
+                // Horizontal layout (heading, buttons).
+                ui.horizontal(|ui| {
+                    // The heading.
+                    ui.heading(self.password_id.to_string());
+
+                    // Add stretch.
+                    ui.add_space(ui.available_width() - 190.0);
+
+                    // The save entry button.
+                    if ui.button("Save Entry").clicked() {
+                        self.cuba.read().unwrap().set_password(
+                            &self.password_id,
+                            &SecretString::from(self.password.clone()),
+                        );
+                        self.password_ids.update();
+                    }
+
+                    // The delete entry button.
+                    if ui.button("Delete Entry").clicked() {
+                        self.cuba.read().unwrap().delete_password(&self.password_id);
+                        self.password_ids.update();
+                        self.password_id.clear();
+                        self.password.clear();
+                    }
+                });
 
                 // Separator.
                 ui.separator();
@@ -138,29 +162,6 @@ impl AppView for KeyringView {
                                 });
                             });
                     });
-                });
-
-                // Separator.
-                ui.separator();
-
-                // The save and delete buttons.
-                ui.horizontal(|ui| {
-                    // The save entry button.
-                    if ui.button("Save Entry").clicked() {
-                        self.cuba.read().unwrap().set_password(
-                            &self.password_id,
-                            &SecretString::from(self.password.clone()),
-                        );
-                        self.password_ids.update();
-                    }
-
-                    // The delete entry button.
-                    if ui.button("Delete Entry").clicked() {
-                        self.cuba.read().unwrap().delete_password(&self.password_id);
-                        self.password_ids.update();
-                        self.password_id.clear();
-                        self.password.clear();
-                    }
                 });
             });
         });

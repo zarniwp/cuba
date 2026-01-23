@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 use cuba_lib::{
     core::cuba::Cuba,
     shared::{
-        config::{ConfigEntryKey, ConfigEntryMut},
+        config::{ConfigEntryKey, ConfigEntryMut, ConfigEntryType},
         npath::{Abs, Dir, Rel},
     },
 };
@@ -22,6 +22,7 @@ pub struct ConfigView {
     password_ids: Arc<PasswordIDs>,
     selected_config_entry_key: Option<ConfigEntryKey>,
     npath_editor_buffer: NPathEditorBuffer,
+    add_entry_type: ConfigEntryType,
 }
 
 /// Methods of `ConfigView`.
@@ -33,6 +34,7 @@ impl ConfigView {
             password_ids,
             selected_config_entry_key: None,
             npath_editor_buffer: NPathEditorBuffer::new(),
+            add_entry_type: ConfigEntryType::LocalFS,
         }
     }
 }
@@ -41,279 +43,292 @@ impl ConfigView {
 impl ConfigView {
     /// Renders the config entry_editor.
     fn render_entry_editor(&mut self, ui: &mut egui::Ui) {
-        if let Some(config) = self.cuba.write().unwrap().config_mut() {
-            let fs_entries = config.list_fs_keys();
+        // Set row height.
+        let row_height: f32 = 25.0;
 
-            if let Some(entry_key) = &self.selected_config_entry_key
-                && let Some(entry) = config.get_entry_mut(entry_key)
-            {
-                // Set row height.
-                let row_height: f32 = 25.0;
+        // Horizontal layout (buttons).
+        ui.horizontal(|ui| {
+            if let Some(entry_key) = &self.selected_config_entry_key {
+                // The heading.
+                ui.heading(entry_key.to_string());
 
-                match entry {
-                    ConfigEntryMut::LocalFS(local_fs) => {
-                        // The heading.
-                        ui.heading(format!("LocalFS: {}", entry_key.name));
+                // Add stretch.
+                ui.add_space(ui.available_width() - 100.0);
 
-                        // Separator.
-                        ui.separator();
-
-                        // Set label width.
-                        let label_width = egui_extras::Size::exact(40.0);
-
-                        // The local fs table.
-                        label_value_table(ui, 1, row_height, |rows| {
-                            // The dir row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Dir:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(NPathEditor::<Abs, Dir>::new(
-                                        &entry_key.to_string(),
-                                        &mut local_fs.dir,
-                                        &mut self.npath_editor_buffer,
-                                    ));
-                                },
-                            );
-                        });
-                    }
-                    ConfigEntryMut::WebDAVFS(webdav_fs) => {
-                        // The heading.
-                        ui.heading(format!("WebDAV: {}", entry_key.name));
-
-                        // Separator.
-                        ui.separator();
-
-                        // The label width.
-                        let label_width = egui_extras::Size::exact(120.0);
-
-                        // The WebDAV fs table.
-                        label_value_table(ui, 4, row_height, |rows| {
-                            // The url row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Url:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(NPathEditor::<Abs, Dir>::new(
-                                        &entry_key.to_string(),
-                                        &mut webdav_fs.url,
-                                        &mut self.npath_editor_buffer,
-                                    ));
-                                },
-                            );
-
-                            // The user row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "User:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(
-                                        egui::TextEdit::singleline(&mut webdav_fs.user)
-                                            .desired_width(f32::INFINITY),
-                                    );
-                                },
-                            );
-
-                            // The password id row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Password ID:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    egui::ComboBox::from_id_salt("PasswordID")
-                                        .selected_text(webdav_fs.password_id.to_string())
-                                        .show_ui(ui, |ui| {
-                                            for password_id in &self.password_ids.get() {
-                                                ui.selectable_value(
-                                                    &mut webdav_fs.password_id,
-                                                    password_id.to_string(),
-                                                    password_id,
-                                                );
-                                            }
-                                        });
-                                },
-                            );
-
-                            // The timeout row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Timeout (secs):",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(egui::DragValue::new(&mut webdav_fs.timeout_secs));
-                                },
-                            );
-                        });
-                    }
-                    ConfigEntryMut::Backup(backup) => {
-                        // The heading.
-                        ui.heading(format!("Backup: {}", entry_key.name));
-
-                        // Separator.
-                        ui.separator();
-
-                        // The label width.
-                        let label_width = egui_extras::Size::exact(120.0);
-
-                        // The backup table.
-                        label_value_table(ui, 9, row_height, |rows| {
-                            // The source fs row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Source:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    egui::ComboBox::from_id_salt("SourceFS")
-                                        .selected_text(backup.src_fs.to_string())
-                                        .show_ui(ui, |ui| {
-                                            for fs_entry in &fs_entries {
-                                                ui.selectable_value(
-                                                    &mut backup.src_fs,
-                                                    fs_entry.to_string(),
-                                                    fs_entry.to_string(),
-                                                );
-                                            }
-                                        });
-                                },
-                            );
-
-                            // The destination fs row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Destination:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    egui::ComboBox::from_id_salt("DestFS")
-                                        .selected_text(backup.dest_fs.to_string())
-                                        .show_ui(ui, |ui| {
-                                            for fs_entry in &fs_entries {
-                                                ui.selectable_value(
-                                                    &mut backup.dest_fs,
-                                                    fs_entry.name.to_string(),
-                                                    fs_entry.name.to_string(),
-                                                );
-                                            }
-                                        });
-                                },
-                            );
-
-                            // The source dir row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Source dir:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(NPathEditor::<Rel, Dir>::new(
-                                        &(entry_key.to_string() + ".src"),
-                                        &mut backup.src_dir,
-                                        &mut self.npath_editor_buffer,
-                                    ));
-                                },
-                            );
-
-                            // The destination dir row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Destination dir:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(NPathEditor::<Rel, Dir>::new(
-                                        &(entry_key.to_string() + ".dest"),
-                                        &mut backup.dest_dir,
-                                        &mut self.npath_editor_buffer,
-                                    ));
-                                },
-                            );
-
-                            // The compression row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Compression",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.checkbox(&mut backup.compression, "");
-                                },
-                            );
-
-                            // The encryption row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Encryption",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.checkbox(&mut backup.encrypt, "");
-                                },
-                            );
-
-                            // The password id row.
-                            if backup.encrypt {
-                                let password_id =
-                                    backup.password_id.get_or_insert_with(String::new);
-
-                                build_row(
-                                    rows,
-                                    label_width,
-                                    "Password ID:",
-                                    egui_extras::Size::remainder(),
-                                    |ui| {
-                                        egui::ComboBox::from_id_salt("PasswordID")
-                                            .selected_text(password_id.as_str())
-                                            .show_ui(ui, |ui| {
-                                                for id in &self.password_ids.get() {
-                                                    ui.selectable_value(
-                                                        password_id,
-                                                        id.clone(),
-                                                        id,
-                                                    );
-                                                }
-                                            });
-                                    },
-                                );
-                            } else {
-                                backup.password_id = None;
-                            }
-
-                            // The include row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Include:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(GlobListWidget::new(&mut backup.include));
-                                },
-                            );
-
-                            // The exclude row.
-                            build_row(
-                                rows,
-                                label_width,
-                                "Exclude:",
-                                egui_extras::Size::remainder(),
-                                |ui| {
-                                    ui.add(GlobListWidget::new(&mut backup.exclude));
-                                },
-                            );
-                        });
-                    }
-                    ConfigEntryMut::Restore(_restore) => {}
+                // The delete entry button.
+                if ui.button("Delete Entry").clicked()
+                    && let Some(config) = self.cuba.write().unwrap().config_mut()
+                {
+                    config.delete_entry(entry_key);
+                    self.selected_config_entry_key = None;
                 }
+            } else {
+                ui.heading("".to_string());
             }
-        }
+        });
+
+        // Separator.
+        ui.separator();
+
+        // Vertical layout (config entry content).
+        egui::ScrollArea::vertical()
+            .id_salt("Config content")
+            .show(ui, |ui| {
+                if let Some(config) = self.cuba.write().unwrap().config_mut() {
+                    let fs_entries = config.list_fs_keys();
+
+                    if let Some(entry_key) = &self.selected_config_entry_key
+                        && let Some(entry) = config.get_entry_mut(entry_key)
+                    {
+                        match entry {
+                            ConfigEntryMut::LocalFS(local_fs) => {
+                                // Set label width.
+                                let label_width = egui_extras::Size::exact(40.0);
+
+                                // The local fs table.
+                                label_value_table(ui, 1, row_height, |rows| {
+                                    // The dir row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Dir:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(NPathEditor::<Abs, Dir>::new(
+                                                &entry_key.to_string(),
+                                                &mut local_fs.dir,
+                                                &mut self.npath_editor_buffer,
+                                            ));
+                                        },
+                                    );
+                                });
+                            }
+                            ConfigEntryMut::WebDAVFS(webdav_fs) => {
+                                // The label width.
+                                let label_width = egui_extras::Size::exact(120.0);
+
+                                // The WebDAV fs table.
+                                label_value_table(ui, 4, row_height, |rows| {
+                                    // The url row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Url:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(NPathEditor::<Abs, Dir>::new(
+                                                &entry_key.to_string(),
+                                                &mut webdav_fs.url,
+                                                &mut self.npath_editor_buffer,
+                                            ));
+                                        },
+                                    );
+
+                                    // The user row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "User:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut webdav_fs.user)
+                                                    .desired_width(f32::INFINITY),
+                                            );
+                                        },
+                                    );
+
+                                    // The password id row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Password ID:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            egui::ComboBox::from_id_salt("PasswordID")
+                                                .selected_text(webdav_fs.password_id.to_string())
+                                                .show_ui(ui, |ui| {
+                                                    for password_id in &self.password_ids.get() {
+                                                        ui.selectable_value(
+                                                            &mut webdav_fs.password_id,
+                                                            password_id.to_string(),
+                                                            password_id,
+                                                        );
+                                                    }
+                                                });
+                                        },
+                                    );
+
+                                    // The timeout row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Timeout (secs):",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(egui::DragValue::new(
+                                                &mut webdav_fs.timeout_secs,
+                                            ));
+                                        },
+                                    );
+                                });
+                            }
+                            ConfigEntryMut::Backup(backup) => {
+                                // The label width.
+                                let label_width = egui_extras::Size::exact(120.0);
+
+                                // The backup table.
+                                label_value_table(ui, 9, row_height, |rows| {
+                                    // The source fs row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Source:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            egui::ComboBox::from_id_salt("SourceFS")
+                                                .selected_text(backup.src_fs.to_string())
+                                                .show_ui(ui, |ui| {
+                                                    for fs_entry in &fs_entries {
+                                                        ui.selectable_value(
+                                                            &mut backup.src_fs,
+                                                            fs_entry.to_string(),
+                                                            fs_entry.to_string(),
+                                                        );
+                                                    }
+                                                });
+                                        },
+                                    );
+
+                                    // The destination fs row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Destination:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            egui::ComboBox::from_id_salt("DestFS")
+                                                .selected_text(backup.dest_fs.to_string())
+                                                .show_ui(ui, |ui| {
+                                                    for fs_entry in &fs_entries {
+                                                        ui.selectable_value(
+                                                            &mut backup.dest_fs,
+                                                            fs_entry.name.to_string(),
+                                                            fs_entry.name.to_string(),
+                                                        );
+                                                    }
+                                                });
+                                        },
+                                    );
+
+                                    // The source dir row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Source dir:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(NPathEditor::<Rel, Dir>::new(
+                                                &(entry_key.to_string() + ".src"),
+                                                &mut backup.src_dir,
+                                                &mut self.npath_editor_buffer,
+                                            ));
+                                        },
+                                    );
+
+                                    // The destination dir row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Destination dir:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(NPathEditor::<Rel, Dir>::new(
+                                                &(entry_key.to_string() + ".dest"),
+                                                &mut backup.dest_dir,
+                                                &mut self.npath_editor_buffer,
+                                            ));
+                                        },
+                                    );
+
+                                    // The compression row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Compression",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.checkbox(&mut backup.compression, "");
+                                        },
+                                    );
+
+                                    // The encryption row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Encryption",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.checkbox(&mut backup.encrypt, "");
+                                        },
+                                    );
+
+                                    // The password id row.
+                                    if backup.encrypt {
+                                        let password_id =
+                                            backup.password_id.get_or_insert_with(String::new);
+
+                                        build_row(
+                                            rows,
+                                            label_width,
+                                            "Password ID:",
+                                            egui_extras::Size::remainder(),
+                                            |ui| {
+                                                egui::ComboBox::from_id_salt("PasswordID")
+                                                    .selected_text(password_id.as_str())
+                                                    .show_ui(ui, |ui| {
+                                                        for id in &self.password_ids.get() {
+                                                            ui.selectable_value(
+                                                                password_id,
+                                                                id.clone(),
+                                                                id,
+                                                            );
+                                                        }
+                                                    });
+                                            },
+                                        );
+                                    } else {
+                                        backup.password_id = None;
+                                    }
+
+                                    // The include row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Include:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(GlobListWidget::new(&mut backup.include));
+                                        },
+                                    );
+
+                                    // The exclude row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Exclude:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(GlobListWidget::new(&mut backup.exclude));
+                                        },
+                                    );
+                                });
+                            }
+                            ConfigEntryMut::Restore(_restore) => {}
+                        }
+                    }
+                }
+            });
     }
 }
 
@@ -330,8 +345,9 @@ impl AppView for ConfigView {
 
         // Horizontal layout (config entry list, entry content).
         ui.horizontal(|ui| {
-            // Vertical layout (heading, list).
+            // Vertical layout (heading, list, buttons).
             ui.vertical(|ui| {
+                // Set width/height.
                 ui.set_width(400.0);
                 ui.set_height(height);
 
@@ -341,9 +357,17 @@ impl AppView for ConfigView {
                 // Separator.
                 ui.separator();
 
+                // The footer height.
+                let footer_height = 35.0;
+
+                // The max scroll area height.
+                let max_scroll_area_height = ui.available_height() - footer_height;
+
                 // Entry list.
                 egui::ScrollArea::vertical()
                     .auto_shrink([false; 2])
+                    .max_height(max_scroll_area_height)
+                    .id_salt("Entries")
                     .show(ui, |ui| {
                         if let Some(config) = self.cuba.read().unwrap().config() {
                             for entry_key in config.list_entry_keys() {
@@ -359,18 +383,54 @@ impl AppView for ConfigView {
                             }
                         }
                     });
+
+                // Stretches to fill space.
+                let remaining = ui.available_height() - footer_height;
+                ui.add_space(remaining);
+
+                // Separator.
+                ui.separator();
+
+                // Horizontal layout (footer).
+                ui.horizontal(|ui| {
+                    if ui.button("+ Add").clicked() {
+                        self.cuba
+                            .write()
+                            .unwrap()
+                            .config_mut()
+                            .unwrap()
+                            .add_new_entry(&self.add_entry_type, "New Entry");
+                    }
+
+                    // The entries which can be added
+                    egui::ComboBox::from_id_salt("add_entry_type")
+                        .selected_text(self.add_entry_type.to_string())
+                        .show_ui(ui, |ui| {
+                            for entry_type in ConfigEntryType::ALL {
+                                ui.selectable_value(
+                                    &mut self.add_entry_type,
+                                    entry_type.clone(),
+                                    entry_type.to_string(),
+                                );
+                            }
+                        });
+
+                    // Add stretch.
+                    ui.add_space(ui.available_width() - 95.0);
+
+                    // The save config button.
+                    if ui.button("Save Config").clicked() {}
+                });
             });
 
             // Separator.
             ui.separator();
 
             // Vertical layout (config entry content).
-            egui::ScrollArea::both().show(ui, |ui| {
-                ui.vertical(|ui| {
-                    ui.set_height(height);
+            ui.vertical(|ui| {
+                ui.set_height(height);
 
-                    self.render_entry_editor(ui);
-                });
+                self.render_entry_editor(ui);
             });
         });
     }

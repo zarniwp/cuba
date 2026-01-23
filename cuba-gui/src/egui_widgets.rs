@@ -271,7 +271,7 @@ impl<'a> egui::Widget for GlobListWidget<'a> {
             let mut enabled = self.globs.is_some();
 
             // Enabled?
-            if ui.checkbox(&mut enabled, "Enable").clicked() {
+            if ui.checkbox(&mut enabled, "Enabled").clicked() {
                 if enabled {
                     *self.globs = Some(Vec::new());
                 } else {
@@ -288,7 +288,7 @@ impl<'a> egui::Widget for GlobListWidget<'a> {
                     for (index, glob) in globs.iter_mut().enumerate() {
                         ui.horizontal(|ui| {
                             // Glob edit.
-                            let available_width = ui.available_width() - 50.0;
+                            let available_width = ui.available_width() - 45.0;
                             ui.add(egui::TextEdit::singleline(glob).desired_width(available_width));
 
                             // Remove glob button.

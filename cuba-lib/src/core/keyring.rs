@@ -66,27 +66,29 @@ fn keyring_entry(id: &str) -> Result<Entry, KeyringError> {
 
 /// Helper to update the password ids.
 fn update_password_ids(id: &str, operation: Operation) -> Result<(), KeyringError> {
-    let entry = keyring_entry(USER_PASSWORD_IDS)?;
+    let entry_ids = keyring_entry(USER_PASSWORD_IDS)?;
 
-    let mut set: HashSet<String> = match entry.get_secret() {
-        Ok(bytes) => wincode::deserialize(&bytes)
+    let mut set_ids: HashSet<String> = match entry_ids.get_secret() {
+        Ok(bytes_ids) => wincode::deserialize(&bytes_ids)
             .map_err(|err| KeyringError::Deserialize(err.to_string()))?,
         Err(_) => HashSet::new(),
     };
 
+    // Change the set of ids.
     match operation {
         Operation::Insert => {
-            set.insert(id.to_string());
+            set_ids.insert(id.to_string());
         }
         Operation::Remove => {
-            set.remove(id);
+            set_ids.remove(id);
         }
     }
 
-    let bytes = wincode::serialize(&set).map_err(|err| KeyringError::Serialize(err.to_string()))?;
+    let bytes_ids =
+        wincode::serialize(&set_ids).map_err(|err| KeyringError::Serialize(err.to_string()))?;
 
-    entry
-        .set_secret(&bytes)
+    entry_ids
+        .set_secret(&bytes_ids)
         .map_err(|err| KeyringError::StoreCredential(err.to_string()))?;
 
     Ok(())
@@ -109,6 +111,13 @@ pub fn store_password(id: &str, password: &SecretString) -> Result<(), KeyringEr
 
 /// Removes a password from OS keyring
 pub fn remove_password(id: &str) -> Result<(), KeyringError> {
+    // Prevent deletion of USER_PASSWORD_IDS.
+    if id == USER_PASSWORD_IDS {
+        return Err(KeyringError::DeleteCredential(
+            "Cannot delete password-ids".to_string(),
+        ));
+    }
+
     // Only update password_ids if remove password was successful.
     keyring_entry(id)?
         .delete_credential()
