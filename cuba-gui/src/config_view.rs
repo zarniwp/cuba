@@ -11,7 +11,7 @@ use cuba_lib::{
 };
 
 use crate::{
-    AppView,
+    AppView, ViewId,
     egui_widgets::{GlobListWidget, NPathEditor, NPathEditorBuffer, build_row, label_value_table},
     password_ids::PasswordIDs,
 };
@@ -23,6 +23,7 @@ pub struct ConfigView {
     selected_config_entry_key: Option<ConfigEntryKey>,
     npath_editor_buffer: NPathEditorBuffer,
     add_entry_type: ConfigEntryType,
+    entry_name: String,
 }
 
 /// Methods of `ConfigView`.
@@ -35,6 +36,7 @@ impl ConfigView {
             selected_config_entry_key: None,
             npath_editor_buffer: NPathEditorBuffer::new(),
             add_entry_type: ConfigEntryType::LocalFS,
+            entry_name: String::new(),
         }
     }
 }
@@ -61,6 +63,7 @@ impl ConfigView {
                 {
                     config.delete_entry(entry_key);
                     self.selected_config_entry_key = None;
+                    self.entry_name.clear();
                 }
             } else {
                 ui.heading("".to_string());
@@ -83,10 +86,24 @@ impl ConfigView {
                         match entry {
                             ConfigEntryMut::LocalFS(local_fs) => {
                                 // Set label width.
-                                let label_width = egui_extras::Size::exact(40.0);
+                                let label_width = egui_extras::Size::exact(60.0);
 
                                 // The local fs table.
-                                label_value_table(ui, 1, row_height, |rows| {
+                                label_value_table(ui, 2, row_height, |rows| {
+                                    // The name row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Name:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut self.entry_name)
+                                                    .desired_width(f32::INFINITY),
+                                            );
+                                        },
+                                    );
+
                                     // The dir row.
                                     build_row(
                                         rows,
@@ -108,7 +125,21 @@ impl ConfigView {
                                 let label_width = egui_extras::Size::exact(120.0);
 
                                 // The WebDAV fs table.
-                                label_value_table(ui, 4, row_height, |rows| {
+                                label_value_table(ui, 5, row_height, |rows| {
+                                    // The name row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Name:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut self.entry_name)
+                                                    .desired_width(f32::INFINITY),
+                                            );
+                                        },
+                                    );
+
                                     // The url row.
                                     build_row(
                                         rows,
@@ -178,7 +209,21 @@ impl ConfigView {
                                 let label_width = egui_extras::Size::exact(120.0);
 
                                 // The backup table.
-                                label_value_table(ui, 9, row_height, |rows| {
+                                label_value_table(ui, 10, row_height, |rows| {
+                                    // The name row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Name:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut self.entry_name)
+                                                    .desired_width(f32::INFINITY),
+                                            );
+                                        },
+                                    );
+
                                     // The source fs row.
                                     build_row(
                                         rows,
@@ -324,7 +369,121 @@ impl ConfigView {
                                     );
                                 });
                             }
-                            ConfigEntryMut::Restore(_restore) => {}
+                            ConfigEntryMut::Restore(restore) => {
+                                // The label width.
+                                let label_width = egui_extras::Size::exact(120.0);
+
+                                // The restore table.
+                                label_value_table(ui, 10, row_height, |rows| {
+                                    // The name row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Name:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut self.entry_name)
+                                                    .desired_width(f32::INFINITY),
+                                            );
+                                        },
+                                    );
+
+                                    // The source fs row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Source:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            egui::ComboBox::from_id_salt("SourceFS")
+                                                .selected_text(restore.src_fs.to_string())
+                                                .show_ui(ui, |ui| {
+                                                    for fs_entry in &fs_entries {
+                                                        ui.selectable_value(
+                                                            &mut restore.src_fs,
+                                                            fs_entry.to_string(),
+                                                            fs_entry.to_string(),
+                                                        );
+                                                    }
+                                                });
+                                        },
+                                    );
+
+                                    // The destination fs row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Destination:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            egui::ComboBox::from_id_salt("DestFS")
+                                                .selected_text(restore.dest_fs.to_string())
+                                                .show_ui(ui, |ui| {
+                                                    for fs_entry in &fs_entries {
+                                                        ui.selectable_value(
+                                                            &mut restore.dest_fs,
+                                                            fs_entry.name.to_string(),
+                                                            fs_entry.name.to_string(),
+                                                        );
+                                                    }
+                                                });
+                                        },
+                                    );
+
+                                    // The source dir row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Source dir:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(NPathEditor::<Rel, Dir>::new(
+                                                &(entry_key.to_string() + ".src"),
+                                                &mut restore.src_dir,
+                                                &mut self.npath_editor_buffer,
+                                            ));
+                                        },
+                                    );
+
+                                    // The destination dir row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Destination dir:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(NPathEditor::<Rel, Dir>::new(
+                                                &(entry_key.to_string() + ".dest"),
+                                                &mut restore.dest_dir,
+                                                &mut self.npath_editor_buffer,
+                                            ));
+                                        },
+                                    );
+
+                                    // The include row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Include:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(GlobListWidget::new(&mut restore.include));
+                                        },
+                                    );
+
+                                    // The exclude row.
+                                    build_row(
+                                        rows,
+                                        label_width,
+                                        "Exclude:",
+                                        egui_extras::Size::remainder(),
+                                        |ui| {
+                                            ui.add(GlobListWidget::new(&mut restore.exclude));
+                                        },
+                                    );
+                                });
+                            }
                         }
                     }
                 }
@@ -337,6 +496,11 @@ impl AppView for ConfigView {
     /// Returns the name of the view.
     fn name(&self) -> &str {
         "Config"
+    }
+
+    /// Returns the view id.
+    fn view_id(&self) -> ViewId {
+        ViewId::Config
     }
 
     /// Renders the view for egui.
@@ -356,6 +520,18 @@ impl AppView for ConfigView {
 
                 // Separator.
                 ui.separator();
+
+                // Rename entry.
+                if let Some(entry_key) = &self.selected_config_entry_key
+                    && entry_key.name != self.entry_name
+                    && let Some(config) = self.cuba.write().unwrap().config_mut()
+                {
+                    config.rename_entry(entry_key, self.entry_name.as_str());
+                    self.selected_config_entry_key = Some(ConfigEntryKey::new(
+                        entry_key.entry_type.clone(),
+                        self.entry_name.clone(),
+                    ));
+                }
 
                 // The footer height.
                 let footer_height = 35.0;
@@ -378,7 +554,8 @@ impl AppView for ConfigView {
                                     .selectable_label(selected, format!("{}", entry_key))
                                     .clicked()
                                 {
-                                    self.selected_config_entry_key = Some(entry_key);
+                                    self.selected_config_entry_key = Some(entry_key.clone());
+                                    self.entry_name = entry_key.name;
                                 }
                             }
                         }

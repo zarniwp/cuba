@@ -11,7 +11,7 @@ use cuba_lib::{
 use egui::Color32;
 
 use crate::{
-    AppView, UpdateHandler,
+    AppView, UpdateHandler, ViewId,
     egui_widgets::ProgressSpinner,
     task_progress::{TaskMessageType, TaskProgress},
     util::make_cuba_runner,
@@ -54,6 +54,11 @@ impl AppView for BackupView {
     /// Returns the name of the view.
     fn name(&self) -> &str {
         "Backup"
+    }
+
+    /// Returns the view id.
+    fn view_id(&self) -> ViewId {
+        ViewId::Backup
     }
 
     /// Renders the view for egui.

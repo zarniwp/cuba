@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::AppView;
+use crate::{AppView, ViewId};
 
 /// Defines a `RestoreView`.
 pub struct RestoreView {
@@ -20,6 +20,11 @@ impl AppView for RestoreView {
     /// Returns the name of the view.
     fn name(&self) -> &str {
         "Restore"
+    }
+
+    /// Returns the view id.
+    fn view_id(&self) -> ViewId {
+        ViewId::Restore
     }
 
     /// Renders the view for egui.

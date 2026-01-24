@@ -7,7 +7,7 @@ use cuba_lib::core::cuba::Cuba;
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::{
-    AppView,
+    AppView, ViewId,
     egui_widgets::{build_row, label_value_table},
     password_ids::PasswordIDs,
 };
@@ -40,6 +40,11 @@ impl AppView for KeyringView {
     /// Returns the name of the view.
     fn name(&self) -> &str {
         "Keyring"
+    }
+
+    /// Returns the view id.
+    fn view_id(&self) -> ViewId {
+        ViewId::Keyring
     }
 
     /// Renders the view for egui.

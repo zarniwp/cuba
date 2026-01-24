@@ -75,6 +75,14 @@ pub struct ConfigEntryKey {
     pub name: String,
 }
 
+/// Methods of `ConfigEntryKey`.
+impl ConfigEntryKey {
+    /// Creates a new `ConfigEntryKey`.
+    pub fn new(entry_type: ConfigEntryType, name: String) -> Self {
+        Self { entry_type, name }
+    }
+}
+
 /// Impl `Display` for `ConfigEntryKey`.
 impl fmt::Display for ConfigEntryKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -240,6 +248,37 @@ impl Config {
             }
             ConfigEntryType::Restore => {
                 self.restore.remove(&key.name);
+            }
+        }
+    }
+
+    /// Renames the entry with the given key.
+    pub fn rename_entry(&mut self, key: &ConfigEntryKey, new_name: &str) {
+        // Nothing to do.
+        if key.name == new_name {
+            return;
+        }
+
+        match key.entry_type {
+            ConfigEntryType::LocalFS => {
+                if let Some(entry) = self.filesystem.local.remove(&key.name) {
+                    self.filesystem.local.insert(new_name.to_string(), entry);
+                }
+            }
+            ConfigEntryType::WebDAVFS => {
+                if let Some(entry) = self.filesystem.webdav.remove(&key.name) {
+                    self.filesystem.webdav.insert(new_name.to_string(), entry);
+                }
+            }
+            ConfigEntryType::Backup => {
+                if let Some(entry) = self.backup.remove(&key.name) {
+                    self.backup.insert(new_name.to_string(), entry);
+                }
+            }
+            ConfigEntryType::Restore => {
+                if let Some(entry) = self.restore.remove(&key.name) {
+                    self.restore.insert(new_name.to_string(), entry);
+                }
             }
         }
     }

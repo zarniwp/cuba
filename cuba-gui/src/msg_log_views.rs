@@ -10,7 +10,7 @@ use cuba_lib::shared::{
     npath::{Rel, UNPath},
 };
 
-use crate::{AppView, UpdateHandler};
+use crate::{AppView, UpdateHandler, ViewId};
 
 /// Defines a `MsgLogView`.
 pub struct MsgLogView {
@@ -51,6 +51,15 @@ impl AppView for MsgLogView {
             MsgLogLevel::Info => "Infos",
             MsgLogLevel::Warning => "Warnings",
             MsgLogLevel::Error => "Errors",
+        }
+    }
+
+    /// Returns the view id.
+    fn view_id(&self) -> ViewId {
+        match self.log_level {
+            MsgLogLevel::Info => ViewId::InfoLog,
+            MsgLogLevel::Warning => ViewId::WarningLog,
+            MsgLogLevel::Error => ViewId::ErrorLog,
         }
     }
 
