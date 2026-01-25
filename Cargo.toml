@@ -2,6 +2,15 @@
 members = ["cuba-lib", "cuba-cli", "cuba-gui"]
 resolver = "3"
 
+[workspace.package]
+authors = ["Stefan Pflumm"]
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/cuba"
+repository = "https://github.com/zarniwp/cuba"
+homepage = "https://github.com/zarniwp/cuba/"
+edition = "2024"
+readme = "README.md"
+
 [workspace.dependencies]
 crossbeam-channel = "0.5.15"
 secrecy = "0.10.3"

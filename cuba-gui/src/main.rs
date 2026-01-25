@@ -12,6 +12,7 @@ mod util;
 
 use std::{
     collections::HashMap,
+    path::Path,
     sync::{Arc, RwLock},
 };
 
@@ -33,6 +34,9 @@ use eframe::egui;
 use egui::{FontData, FontDefinitions, FontFamily};
 use egui_dock::{DockArea, DockState, NodeIndex, Style, TabViewer};
 use serde::{Deserialize, Serialize};
+
+/// The layout file.
+const LAYOUT_FILE: &str = "cuba-gui-layout.json";
 
 /// Sets up the fonts for egui.
 fn setup_fonts(ctx: &egui::Context) {
@@ -324,6 +328,11 @@ impl CubaGui {
 
         // Set active view.
         self.set_active_view(&ViewId::Backup);
+
+        // Load layout if it exists.
+        if Path::new(LAYOUT_FILE).exists() {
+            self.load_layout();
+        }
     }
 
     /// Save the current layout state to a file.
@@ -336,14 +345,14 @@ impl CubaGui {
             }
         };
 
-        if let Err(err) = std::fs::write("cuba-gui-layout.json", serialized) {
+        if let Err(err) = std::fs::write(LAYOUT_FILE, serialized) {
             send_error!(self.sender, err);
         }
     }
 
     /// Load the layout state from a file.
     pub fn load_layout(&mut self) {
-        let serialized = match std::fs::read_to_string("cuba-gui-layout.json") {
+        let serialized = match std::fs::read_to_string(LAYOUT_FILE) {
             Ok(serialized) => serialized,
             Err(err) => {
                 send_error!(self.sender, err);
@@ -394,23 +403,53 @@ impl eframe::App for CubaGui {
             });
         });
 
+        // The about dialog.
         if self.show_about {
             egui::Window::new("About")
                 .collapsible(false)
                 .resizable(false)
+                .default_size([600.0, 200.0])
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
                 .show(ctx, |ui| {
-                    ui.heading("Cuba Backup");
+                    ui.heading(env!("CARGO_PKG_NAME"));
                     ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
                     ui.separator();
-                    ui.label("© 2026 Stefan Pflumm");
+                    ui.label("Cuba is a lightweight and flexible backup tool for your local data. It allows you to back up files to WebDAV cloud or network drives while keeping them in their original form by default. Optional compression and encryption ensure your backups are efficient and secure, and because standard formats are used, your files can also be accessed or restored with public tools if needed.");
+                    ui.separator();
+                    ui.label(format!("© 2026 {}", env!("CARGO_PKG_AUTHORS")));
+                    ui.separator();
+                    ui.label(format!("License: {}", env!("CARGO_PKG_LICENSE")));
+                    ui.separator();
+                    egui::Grid::new("Hyperlinks").show(ui, |ui| {
+                        ui.label("Homepage:");
+                        ui.hyperlink(env!("CARGO_PKG_HOMEPAGE"));
+                        ui.end_row();
 
-                    ui.add_space(10.0); // vertical spacing
+                        ui.label("Repository:");
+                        ui.hyperlink(env!("CARGO_PKG_REPOSITORY"));
+                        ui.end_row();
 
-                    ui.horizontal_centered(|ui| {
-                        if ui.button("OK").clicked() {
-                            self.show_about = false;
-                        }
+                        ui.label("Documentation:");
+                        ui.hyperlink(format!("https://docs.rs/{}/{}",
+                            env!("CARGO_PKG_NAME"),
+                            env!("CARGO_PKG_VERSION")));
+                        ui.end_row();
                     });
+
+                    ui.separator();
+                    ui.label("This project bundles the JetBrains Mono font. JetBrains Mono is licensed under the SIL Open Font License 1.1. Copyright © 2020 JetBrains s.r.o.");
+
+                    ui.add_space(12.0);
+
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(ui.available_width(), 0.0),
+                        egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+                        |ui| {
+                            if ui.button("OK").clicked() {
+                                self.show_about = false;
+                            }
+                        },
+                    );
                 });
         }
 

@@ -1,14 +1,16 @@
 [package]
 name = "cuba-gui"
 version = "0.1.0"
-edition = "2024"
 description = "Graphical user interface for Cuba"
-documentation = "https://docs.rs/cuba"
-repository = "https://github.com/zarniwp/cuba"
-homepage = "https://github.com/zarniwp/cuba/"
 readme = "../README.md"
-license = "MIT OR Apache-2.0"
 keywords = ["backup", "gui"]
+
+authors.workspace = true
+license.workspace = true
+documentation.workspace = true
+repository.workspace = true
+homepage.workspace = true
+edition.workspace = true
 
 [package.metadata]
 assets = [

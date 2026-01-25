@@ -1,14 +1,16 @@
 [package]
 name = "cuba-lib"
 version = "0.1.0"
-edition = "2024"
 description = "Core library for Cuba"
-documentation = "https://docs.rs/cuba"
-repository = "https://github.com/zarniwp/cuba"
-homepage = "https://github.com/zarniwp/cuba/"
 readme = "../README.md"
-license = "MIT OR Apache-2.0"
 keywords = ["backup"]
+
+authors.workspace = true
+license.workspace = true
+documentation.workspace = true
+repository.workspace = true
+homepage.workspace = true
+edition.workspace = true
 
 [dependencies]
 crossbeam-channel = { workspace = true }
