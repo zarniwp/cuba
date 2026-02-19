@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+mod about;
 mod backup_view;
 mod config_view;
 mod egui_widgets;
@@ -9,7 +10,6 @@ mod password_ids;
 mod restore_view;
 mod task_progress;
 mod util;
-mod about;
 
 use std::{
     collections::HashMap,
@@ -18,7 +18,13 @@ use std::{
 };
 
 use crate::{
-    about::show_about, backup_view::BackupView, config_view::ConfigView, keyring_view::KeyringView, msg_log_views::{MsgLogLevel, MsgLogView}, password_ids::PasswordIDs, restore_view::RestoreView
+    about::show_about,
+    backup_view::BackupView,
+    config_view::ConfigView,
+    keyring_view::KeyringView,
+    msg_log_views::{MsgLogLevel, MsgLogView},
+    password_ids::PasswordIDs,
+    restore_view::RestoreView,
 };
 use crossbeam_channel::{Sender, unbounded};
 use cuba_lib::{
@@ -374,7 +380,7 @@ impl eframe::App for CubaGui {
         egui::TopBottomPanel::top("Menu").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 if ui.button("Quit").clicked() {
-                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 };
 
                 ui.menu_button("Views", |ui| {

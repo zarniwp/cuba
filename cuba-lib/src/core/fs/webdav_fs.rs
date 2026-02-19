@@ -12,14 +12,13 @@ use std::thread;
 use std::time::SystemTime;
 use unicode_normalization::UnicodeNormalization;
 use url::ParseError;
-use warned::Warned;
 
+use crate::core::fs::fs_metadata::FSMetaData;
 use crate::shared::npath::{
     Abs, Dir, File, NPath, NPathComponent, NPathError, NPathRoot, Rel, UNPath,
 };
 
 use super::fs_base::{FS, FSBlockSize, FSError, FSWrite};
-use super::fs_node::{FSNode, FSNodeMetaData};
 
 fn parse_rfc1123(input: &str) -> Result<DateTime<Utc>, chrono::ParseError> {
     const RFC1123: &str = "%a, %d %b %Y %H:%M:%S %z";
@@ -60,6 +59,7 @@ pub fn choose_path(abs_path: &UNPath<Abs>, entry_rel_path: &Option<UNPath<Rel>>)
                 Ok(dir_path) => dir_path,
                 Err(_err) => abs_path.clone(),
             },
+            UNPath::Symlink(_sym_path) => abs_path.clone(),
         }
     } else {
         abs_path.clone()
@@ -116,6 +116,7 @@ pub fn make_rel_path_from_str_path(path: &str) -> Result<UNPath<Rel>, NPathError
     }
 }
 
+/// Defines a `Context`.
 #[derive(PartialEq)]
 enum Context {
     Response,
@@ -129,6 +130,13 @@ enum Context {
     Getlastmodified,
 }
 
+/// Defines a `Resource`.
+pub struct Resource {
+    pub abs_path: UNPath<Abs>,
+    pub metadata: FSMetaData,
+}
+
+/// Defines a `WebDAVFS`.
 pub struct WebDAVFS {
     username: String,
     password: SecretString,
@@ -137,6 +145,7 @@ pub struct WebDAVFS {
     connected: bool,
 }
 
+/// Methods of `WebDAVFS`.
 impl WebDAVFS {
     pub fn new(username: &str, password: &SecretString, timeout_secs: u64) -> Self {
         WebDAVFS {
@@ -201,18 +210,18 @@ impl WebDAVFS {
         abs_path: &UNPath<Abs>,
         include_path: bool,
         xml: &str,
-    ) -> Result<Vec<FSNode>, FSError> {
+    ) -> Result<Vec<Resource>, FSError> {
         let mut reader = Reader::from_str(xml);
         reader.config_mut().trim_text(true);
         reader.config_mut().expand_empty_elements = true;
 
-        let mut fs_nodes: Vec<FSNode> = Vec::new();
+        let mut resources: Vec<Resource> = Vec::new();
 
         let mut xml_buf = Vec::new();
         let mut context: Vec<Context> = Vec::new();
 
         let mut entry_rel_path: Option<UNPath<Rel>> = None;
-        let mut fs_metadata: Option<FSNodeMetaData> = None;
+        let mut metadata: Option<FSMetaData> = None;
         let mut is_dir: Option<bool> = None;
         let mut size: Option<u64> = None;
         let mut created: Option<SystemTime> = None;
@@ -238,7 +247,7 @@ impl WebDAVFS {
                             href_buf.clear();
                         }
                         b"propstat" if context.last() == Some(&Context::Response) => {
-                            fs_metadata = None;
+                            metadata = None;
 
                             context.push(Context::Propstat);
                         }
@@ -280,7 +289,7 @@ impl WebDAVFS {
                     match local_name_ref {
                         b"response" if context.last() == Some(&Context::Response) => {
                             if let (Some(is_dir), Some(entry_rel_path), Some(fs_metadata)) =
-                                (is_dir, entry_rel_path.clone(), fs_metadata.clone())
+                                (is_dir, entry_rel_path.clone(), metadata.clone())
                             {
                                 // Path target must be the same.
                                 if is_dir != entry_rel_path.is_dir() {
@@ -300,15 +309,16 @@ impl WebDAVFS {
                                             )
                                         })?
                                     }
+                                    UNPath::Symlink(_sym_path) => abs_path.clone(),
                                 };
 
-                                let fs_node = FSNode {
+                                let resource = Resource {
                                     abs_path: entry_abs_path.clone(),
                                     metadata: fs_metadata,
                                 };
 
                                 if include_path || *abs_path != entry_abs_path {
-                                    fs_nodes.push(fs_node);
+                                    resources.push(resource);
                                 }
                             }
 
@@ -323,22 +333,7 @@ impl WebDAVFS {
                                 })?);
                         }
                         b"propstat" if context.last() == Some(&Context::Propstat) => {
-                            if let (Some(is_dir), Some(created), Some(modified)) =
-                                (is_dir, created, modified)
-                            {
-                                if !is_dir && size.is_none() {
-                                    return Err(FSError::MetaFailed(
-                                        choose_path(abs_path, &entry_rel_path),
-                                        "File size is zero".into(),
-                                    ));
-                                } else {
-                                    fs_metadata = Some(FSNodeMetaData {
-                                        created,
-                                        modified,
-                                        size: size.unwrap_or(0),
-                                    });
-                                }
-                            }
+                            metadata = Some(FSMetaData::new(created, modified, size, None));
 
                             context.pop();
                         }
@@ -468,7 +463,7 @@ impl WebDAVFS {
             xml_buf.clear();
         }
 
-        Ok(fs_nodes)
+        Ok(resources)
     }
 
     fn remove(&self, abs_path: &UNPath<Abs>) -> Result<(), FSError> {
@@ -494,6 +489,10 @@ impl WebDAVFS {
                                     dir_path.clone(),
                                     "Removal was not successful".into(),
                                 )),
+                                UNPath::Symlink(sym_path) => Err(FSError::MetaFailed(
+                                    sym_path.into(),
+                                    "Symlink type is not supported".into(),
+                                )),
                             }
                         }
                     }
@@ -503,6 +502,9 @@ impl WebDAVFS {
                         }
                         UNPath::Dir(dir_path) => {
                             Err(FSError::RemoveDirFailed(dir_path.clone(), err.into()))
+                        }
+                        UNPath::Symlink(sym_path) => {
+                            Err(FSError::MetaFailed(sym_path.into(), err.into()))
                         }
                     },
                 }
@@ -514,11 +516,13 @@ impl WebDAVFS {
                 UNPath::Dir(dir_path) => {
                     Err(FSError::RemoveDirFailed(dir_path.clone(), err.into()))
                 }
+                UNPath::Symlink(sym_path) => Err(FSError::MetaFailed(sym_path.into(), err.into())),
             },
         }
     }
 }
 
+/// Impl of `FS` for `WebDAVFS`.
 impl FS for WebDAVFS {
     fn connect(&mut self) -> Result<(), FSError> {
         self.connected = true;
@@ -541,7 +545,7 @@ impl FS for WebDAVFS {
         FSBlockSize::new(None, 128 * 1024, None)
     }
 
-    fn meta(&self, abs_path: &UNPath<Abs>) -> Result<FSNodeMetaData, FSError> {
+    fn meta(&self, abs_path: &UNPath<Abs>) -> Result<FSMetaData, FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
         }
@@ -573,7 +577,7 @@ impl FS for WebDAVFS {
                         if !fs_node.abs_path.is_dir()
                             && let Ok(real_size) = self.get_file_size_with_range(abs_path)
                         {
-                            metadata.size = real_size;
+                            metadata.size = Some(real_size);
                         }
 
                         Ok(metadata)
@@ -588,10 +592,7 @@ impl FS for WebDAVFS {
         }
     }
 
-    fn list_dir(
-        &self,
-        abs_dir_path: &NPath<Abs, Dir>,
-    ) -> Result<Warned<Vec<FSNode>, String>, FSError> {
+    fn list_dir(&self, abs_dir_path: &NPath<Abs, Dir>) -> Result<Vec<UNPath<Abs>>, FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
         }
@@ -609,7 +610,10 @@ impl FS for WebDAVFS {
                     .map_err(|err| FSError::ListDirFailed(abs_dir_path.clone(), err.into()))?;
 
                 match self.parse_response(&abs_dir_path.into(), false, &xml) {
-                    Ok(nodes) => Ok(Warned::new(nodes, vec![])),
+                    Ok(resources) => Ok(resources
+                        .into_iter()
+                        .map(|resource| resource.abs_path)
+                        .collect()),
                     Err(err) => Err(FSError::ListDirFailed(abs_dir_path.clone(), err.into())),
                 }
             }

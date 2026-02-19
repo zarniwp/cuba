@@ -6,12 +6,12 @@ use std::sync::RwLock;
 
 use crate::core::run_state::RunState;
 use crate::send_error;
-use crate::send_warns;
 use crate::shared::message::Message;
 use crate::shared::npath::Dir;
 use crate::shared::npath::File;
 use crate::shared::npath::NPath;
 use crate::shared::npath::Rel;
+use crate::shared::npath::Symlink;
 use crate::shared::npath::UNPath;
 use crate::shared::progress_message::ProgressInfo;
 use crate::shared::progress_message::ProgressMessage;
@@ -25,6 +25,7 @@ use super::glob_matcher::IncludeMatcher;
 use super::password_cache::PasswordCache;
 use super::tasks::directory_backup_task::directory_backup_task;
 use super::tasks::file_backup_task::file_backup_task;
+use super::tasks::symlink_backup_task::symlink_backup_task;
 use super::tasks::task_worker::TaskWorker;
 use super::transferred_node::Flags;
 use super::transferred_node::MaskedFlags;
@@ -80,9 +81,10 @@ pub fn run_backup(
     // Read cuba json.
     let mut transferred_nodes = read_cuba_json(&fs_conn.dest_mnt, &sender).unwrap_or_default();
 
-    // Collect source directories and files.
+    // Collect source files, directories and symlinks.
     let mut src_rel_files: VecDeque<NPath<Rel, File>> = VecDeque::new();
     let mut src_rel_directories: VecDeque<NPath<Rel, Dir>> = VecDeque::new();
+    let mut src_rel_symlinks: VecDeque<NPath<Rel, Symlink>> = VecDeque::new();
 
     fs_conn
         .src_mnt
@@ -91,27 +93,30 @@ pub fn run_backup(
         .unwrap()
         .walk_dir_rec(
             &fs_conn.src_mnt.abs_dir_path,
-            &mut |fs_node| {
+            &mut |abs_path| {
                 let mut included = true;
                 let mut excluded = false;
 
-                match fs_node.abs_path.sub_abs_dir(&fs_conn.src_mnt.abs_dir_path) {
-                    Ok(node_rel_path) => {
+                match abs_path.sub_abs_dir(&fs_conn.src_mnt.abs_dir_path) {
+                    Ok(rel_path) => {
                         if let Some(ref matcher) = include_matcher {
-                            included = matcher.is_match(&node_rel_path);
+                            included = matcher.is_match(&rel_path);
                         }
 
                         if let Some(ref matcher) = exclude_matcher {
-                            excluded = matcher.is_match(&node_rel_path);
+                            excluded = matcher.is_match(&rel_path);
                         }
 
                         if included && !excluded {
-                            match &node_rel_path {
+                            match &rel_path {
                                 UNPath::File(rel_file_path) => {
                                     src_rel_files.push_back(rel_file_path.clone());
                                 }
                                 UNPath::Dir(rel_dir_path) => {
                                     src_rel_directories.push_back(rel_dir_path.clone());
+                                }
+                                UNPath::Symlink(rel_sym_path) => {
+                                    src_rel_symlinks.push_back(rel_sym_path.clone());
                                 }
                             }
                         }
@@ -123,7 +128,6 @@ pub fn run_backup(
 
                 included && !excluded
             },
-            &|warned| send_warns!(sender, warned),
             &|err| send_error!(sender, err),
         )
         .unwrap();
@@ -135,6 +139,7 @@ pub fn run_backup(
     let password_cache = PasswordCache::new();
 
     let arc_mutex_src_rel_files = Arc::new(Mutex::new(src_rel_files));
+    let arc_mutex_src_rel_symlinks = Arc::new(Mutex::new(src_rel_symlinks));
     let arc_rwlock_transferred_nodes = Arc::new(RwLock::new(transferred_nodes));
     let arc_mutex_password_cache = Arc::new(Mutex::new(password_cache));
 
@@ -147,6 +152,9 @@ pub fn run_backup(
     // Init file backup flags.
     let mut file_backup_flags: MaskedFlags =
         MaskedFlags::new().with_mask(Flags::COMPRESSED | Flags::ENCRYPTED | Flags::VERIFY_ERROR);
+
+    // Init symlink backup flags.
+    let sym_backup_flags: MaskedFlags = MaskedFlags::new().with_mask(Flags::VERIFY_ERROR);
 
     // Is compression true?
     if compression {
@@ -161,7 +169,9 @@ pub fn run_backup(
     }
 
     // Progress duration.
-    let items = src_rel_directories.len() + arc_mutex_src_rel_files.lock().unwrap().len();
+    let items = src_rel_directories.len()
+        + arc_mutex_src_rel_files.lock().unwrap().len()
+        + arc_mutex_src_rel_symlinks.lock().unwrap().len();
     sender
         .send(Arc::new(ProgressMessage::new(
             Arc::new(ProgressInfo::Duration),
@@ -207,6 +217,17 @@ pub fn run_backup(
             file_backup_flags,
             arc_mutex_password_cache.clone(),
             password_id.clone(),
+        )),
+    );
+
+    // Run symlink backup.
+    task_worker.run(
+        run_state.clone(),
+        threads,
+        Arc::new(symlink_backup_task(
+            arc_mutex_src_rel_symlinks,
+            arc_rwlock_transferred_nodes.clone(),
+            sym_backup_flags,
         )),
     );
 

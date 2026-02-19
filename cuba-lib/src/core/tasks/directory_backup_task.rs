@@ -55,9 +55,31 @@ pub fn directory_backup_task(
                 .send(create_task_info_msg(Arc::new(TaskInfo::Start)))
                 .unwrap();
 
+            // Create absolut path to the src dir.
+            let src_abs_dir_path: NPath<Abs, Dir> =
+                fs_conn.src_mnt.abs_dir_path.add_rel_dir(&src_rel_dir_path);
+
             // Create absolut path to the dest dir.
             let dest_abs_dir_path: NPath<Abs, Dir> =
                 fs_conn.dest_mnt.abs_dir_path.add_rel_dir(&src_rel_dir_path);
+
+            // Retrieve metadata for the src dir.
+            let src_dir_metadata = match task_handle_error(
+                fs_conn
+                    .src_mnt
+                    .fs
+                    .read()
+                    .unwrap()
+                    .meta(&src_abs_dir_path.into()),
+                &create_task_error_msg,
+                &sender,
+            ) {
+                Some(metadata) => metadata,
+                None => {
+                    // Exit task and continue.
+                    return exit_task_and_continue(&create_task_info_msg, &sender);
+                }
+            };
 
             // Init with true.
             let mut create_dest_dir: bool = true;
@@ -112,7 +134,7 @@ pub fn directory_backup_task(
                             &create_task_error_msg,
                             &sender,
                         ) {
-                            Some(_meta) => {
+                            Some(_dest_dir_meta) => {
                                 // Dir exists.
                                 sender
                                     .send(create_task_info_msg(Arc::new(TaskInfo::UpToDate)))
@@ -149,7 +171,11 @@ pub fn directory_backup_task(
                 .view_mut::<Backup>()
                 .set_transferred_node(
                     &src_rel_dir_path.clone().into(),
-                    &TransferredNode::from_dir(&src_rel_dir_path, transferred_node_flags),
+                    &TransferredNode::from_dir(
+                        &src_rel_dir_path,
+                        transferred_node_flags,
+                        &src_dir_metadata,
+                    ),
                 );
 
             // Task finished

@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use crate::core::run_state::RunState;
 use crate::send_error;
-use crate::send_warns;
 use crate::shared::clean_message::{CleanError, CleanInfo, CleanMessage};
 use crate::shared::message::Message;
 use crate::shared::npath::{Abs, Rel, UNPath};
@@ -55,7 +54,7 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
         .unwrap()
         .walk_dir_rec(
             &fs_mnt.abs_dir_path,
-            &mut |fs_node| {
+            &mut |abs_path| {
                 // Progress tick.
                 sender
                     .send(Arc::new(ProgressMessage::new(
@@ -67,7 +66,7 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
                 if run_state.is_canceled() {
                     false
                 } else {
-                    match fs_node.abs_path.sub_abs_dir(&fs_mnt.abs_dir_path) {
+                    match abs_path.sub_abs_dir(&fs_mnt.abs_dir_path) {
                         Ok(node_rel_path) => {
                             if let Some(transferred_node) = transferred_nodes_read
                                 .view::<Restore>()
@@ -75,7 +74,7 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
                             {
                                 if clean_flags.matches(transferred_node.flags) {
                                     return remove_node(
-                                        &fs_node.abs_path,
+                                        &abs_path,
                                         &node_rel_path,
                                         fs_mnt.clone(),
                                         sender.clone(),
@@ -102,7 +101,7 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
                                 }
                             } else {
                                 return remove_node(
-                                    &fs_node.abs_path,
+                                    &abs_path,
                                     &node_rel_path,
                                     fs_mnt.clone(),
                                     sender.clone(),
@@ -117,7 +116,6 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
                     true
                 }
             },
-            &|warned| send_warns!(sender, warned),
             &|err| send_error!(sender, err),
         )
         .unwrap();
@@ -136,20 +134,20 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
     run_state.stop();
 }
 
-/// Removed a node.
+/// Removes a node.
 fn remove_node(
-    node_abs_path: &UNPath<Abs>,
-    node_rel_path: &UNPath<Rel>,
+    abs_path: &UNPath<Abs>,
+    rel_path: &UNPath<Rel>,
     fs_mnt: FSMount,
     sender: Sender<Arc<dyn Message>>,
 ) -> bool {
-    match node_abs_path {
+    match abs_path {
         UNPath::File(abs_file_path) => {
             if !abs_file_path.ends_with(&CUBA_JSON_REL_PATH.clone()) {
                 if fs_mnt.fs.read().unwrap().remove_file(abs_file_path).is_ok() {
                     sender
                         .send(Arc::new(CleanMessage::new(
-                            node_rel_path,
+                            rel_path,
                             None,
                             Some(Arc::new(CleanInfo::Removed)),
                         )))
@@ -157,7 +155,7 @@ fn remove_node(
                 } else {
                     sender
                         .send(Arc::new(CleanMessage::new(
-                            node_rel_path,
+                            rel_path,
                             Some(Arc::new(CleanError::RemoveFailed)),
                             None,
                         )))
@@ -171,7 +169,7 @@ fn remove_node(
             if fs_mnt.fs.read().unwrap().remove_dir(abs_dir_path).is_ok() {
                 sender
                     .send(Arc::new(CleanMessage::new(
-                        node_rel_path,
+                        rel_path,
                         None,
                         Some(Arc::new(CleanInfo::Removed)),
                     )))
@@ -182,7 +180,7 @@ fn remove_node(
             } else {
                 sender
                     .send(Arc::new(CleanMessage::new(
-                        node_rel_path,
+                        rel_path,
                         Some(Arc::new(CleanError::RemoveFailed)),
                         None,
                     )))
@@ -192,5 +190,6 @@ fn remove_node(
                 false
             }
         }
+        UNPath::Symlink(_abs_sym_path) => true,
     }
 }

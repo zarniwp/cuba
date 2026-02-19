@@ -3,12 +3,9 @@ use std::io::{Read, Write};
 use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 use thiserror::Error;
-use warned::Warned;
 
+use crate::core::fs::fs_metadata::FSMetaData;
 use crate::shared::npath::{Abs, Dir, File, NPath, UNPath};
-
-use super::fs_node::FSNode;
-use super::fs_node::FSNodeMetaData;
 
 pub type FSHandle = Arc<RwLock<dyn FS>>;
 
@@ -226,7 +223,7 @@ pub enum FSError {
     #[error("Operation not supported.")]
     NotSupported,
 
-    /// Error when the metadata of the file or directory cannot be retreived, including the destination path.
+    /// Error when the metadata of the file, directory or symlink cannot be retreived, including the destination path.
     #[error("Failed to retrieve meta data {0:?}")]
     MetaFailed(UNPath<Abs>, #[source] Box<dyn Error + Send + Sync>),
 
@@ -294,7 +291,7 @@ pub trait FS: Send + Sync {
     ///
     /// - Returns [`FSError::NotConnected`] when the fs is not connected.
     /// - Returns [`FSError::MetaFailed`] when `meta` failes.
-    fn meta(&self, abs_path: &UNPath<Abs>) -> Result<FSNodeMetaData, FSError>;
+    fn meta(&self, abs_path: &UNPath<Abs>) -> Result<FSMetaData, FSError>;
 
     /// List directory entries at the specified `abs_dir_path`.
     ///
@@ -302,10 +299,7 @@ pub trait FS: Send + Sync {
     ///
     /// - Returns [`FSError::NotConnected`] when the fs is not connected.
     /// - Returns [`FSError::ListDirFailed`] when `list_dir` failes.
-    fn list_dir(
-        &self,
-        abs_dir_path: &NPath<Abs, Dir>,
-    ) -> Result<Warned<Vec<FSNode>, String>, FSError>;
+    fn list_dir(&self, abs_dir_path: &NPath<Abs, Dir>) -> Result<Vec<UNPath<Abs>>, FSError>;
 
     /// Walks through a directory recursively and executes a callback function on each entry.
     ///
@@ -318,8 +312,7 @@ pub trait FS: Send + Sync {
     /// - `callback` - A function that will be executed for each encountered file or directory.
     ///
     /// If callback returns true on a directory, walk continues traversing the directory.
-    /// - `warn_callback` - A function that will be executed for each encountered warning.
-    /// - `error_callback` - A function that will be executed for each encountered error.
+    /// `error_callback` - A function that will be executed for each encountered error.
     ///
     /// # Errors
     ///
@@ -327,8 +320,7 @@ pub trait FS: Send + Sync {
     fn walk_dir_rec(
         &self,
         abs_dir_path: &NPath<Abs, Dir>,
-        callback: &mut dyn FnMut(FSNode) -> bool,
-        warn_callback: &dyn Fn(Vec<String>),
+        callback: &mut dyn FnMut(UNPath<Abs>) -> bool,
         error_callback: &dyn Fn(FSError),
     ) -> Result<(), FSError> {
         if !self.is_connected() {
@@ -337,24 +329,18 @@ pub trait FS: Send + Sync {
 
         match self.list_dir(abs_dir_path) {
             Ok(entries) => {
-                if !entries.warnings.is_empty() {
-                    warn_callback(entries.warnings);
-                }
-
-                for entry in entries.value {
-                    match &entry.abs_path {
+                for abs_path in entries {
+                    match &abs_path {
                         UNPath::File(_abs_file_path) => {
-                            callback(entry);
+                            callback(abs_path);
                         }
                         UNPath::Dir(abs_dir_path) => {
-                            if callback(entry.clone()) {
-                                self.walk_dir_rec(
-                                    abs_dir_path,
-                                    callback,
-                                    warn_callback,
-                                    error_callback,
-                                )?
+                            if callback(abs_path.clone()) {
+                                self.walk_dir_rec(abs_dir_path, callback, error_callback)?
                             }
+                        }
+                        UNPath::Symlink(_abs_sym_path) => {
+                            callback(abs_path);
                         }
                     }
                 }

@@ -10,6 +10,7 @@ use crate::shared::npath::Dir;
 use crate::shared::npath::File;
 use crate::shared::npath::NPath;
 use crate::shared::npath::Rel;
+use crate::shared::npath::Symlink;
 use crate::shared::npath::UNPath;
 use crate::shared::progress_message::ProgressInfo;
 use crate::shared::progress_message::ProgressMessage;
@@ -22,6 +23,7 @@ use super::glob_matcher::IncludeMatcher;
 use super::password_cache::PasswordCache;
 use super::tasks::directory_restore_task::directory_restore_task;
 use super::tasks::file_restore_task::file_restore_task;
+use super::tasks::symlink_restore_task::symlink_restore_task;
 use super::tasks::task_worker::TaskWorker;
 use super::transferred_node::Restore;
 use super::util::move_rel_npaths;
@@ -75,9 +77,10 @@ pub fn run_restore(
         None => return,
     };
 
-    // Collect source directories and files.
+    // Collect source files, directories and symlinks.
     let mut src_rel_files: VecDeque<NPath<Rel, File>> = VecDeque::new();
     let mut src_rel_directories: VecDeque<NPath<Rel, Dir>> = VecDeque::new();
+    let mut src_rel_symlinks: VecDeque<NPath<Rel, Symlink>> = VecDeque::new();
 
     for src_rel_path in transferred_nodes_read.view::<Restore>().iter_src_nodes() {
         let mut included = true;
@@ -99,6 +102,9 @@ pub fn run_restore(
                 UNPath::Dir(rel_dir_path) => {
                     src_rel_directories.push_back(rel_dir_path.clone());
                 }
+                UNPath::Symlink(rel_sym_path) => {
+                    src_rel_symlinks.push_back(rel_sym_path.clone());
+                }
             }
         }
     }
@@ -108,6 +114,7 @@ pub fn run_restore(
 
     // Create arcs for tasks.
     let arc_mutex_src_rel_files = Arc::new(Mutex::new(src_rel_files));
+    let arc_mutex_src_rel_symlinks = Arc::new(Mutex::new(src_rel_symlinks));
     let arc_transferred_nodes_read = Arc::new(transferred_nodes_read);
     let arc_mutex_password_cache = Arc::new(Mutex::new(password_cache));
 
@@ -115,7 +122,9 @@ pub fn run_restore(
     let task_worker = TaskWorker::new(fs_conn.clone(), sender.clone());
 
     // Progress duration.
-    let items = src_rel_directories.len() + arc_mutex_src_rel_files.lock().unwrap().len();
+    let items = src_rel_directories.len()
+        + arc_mutex_src_rel_files.lock().unwrap().len()
+        + arc_mutex_src_rel_symlinks.lock().unwrap().len();
     sender
         .send(Arc::new(ProgressMessage::new(
             Arc::new(ProgressInfo::Duration),
@@ -156,6 +165,13 @@ pub fn run_restore(
             arc_transferred_nodes_read.clone(),
             arc_mutex_password_cache.clone(),
         )),
+    );
+
+    // Run symlink restore.
+    task_worker.run(
+        run_state.clone(),
+        threads,
+        Arc::new(symlink_restore_task(arc_mutex_src_rel_symlinks)),
     );
 
     // Drop task worker.

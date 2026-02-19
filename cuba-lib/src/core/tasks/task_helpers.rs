@@ -66,7 +66,10 @@ pub fn task_transfer_successful(
                 &create_task_error_msg,
                 sender,
             ) {
-                Some(file_meta) => file_meta.size == transferred_bytes as u64,
+                Some(dest_file_meta) => match dest_file_meta.size {
+                    Some(size) => size == transferred_bytes as u64,
+                    None => false,
+                },
                 None => false,
             }
         }

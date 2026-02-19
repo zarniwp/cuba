@@ -1,17 +1,18 @@
+use crate::core::fs::fs_metadata::FSMetaData;
+use crate::core::fs::fs_symlink_meta::{FSSymlinkMeta, FSSymlinkType};
+use crate::shared::npath::{Abs, Dir, File, NPath, Symlink, UNPath};
+use std::fs::Metadata;
 use std::io::Read;
-use warned::Warned;
-
-use crate::shared::npath::{Abs, Dir, File, NPath, UNPath};
 
 use super::fs_base::FSBlockSize;
 use super::fs_base::{FS, FSError, FSWrite};
-use super::fs_node::{FSNode, FSNodeMetaData};
 
-/// A struct representing a local fs that implements the FS trait.
+/// Defines a `LocalFS`.
 pub struct LocalFS {
     connected: bool,
 }
 
+/// Methods of `LocalFS`.
 impl LocalFS {
     /// Creates a new `LocalFS`.
     pub fn new() -> Self {
@@ -25,6 +26,7 @@ impl Default for LocalFS {
     }
 }
 
+/// Impl of `FS` for `LocalFS`.
 impl FS for LocalFS {
     fn connect(&mut self) -> Result<(), FSError> {
         // Set connection state to true.
@@ -46,28 +48,40 @@ impl FS for LocalFS {
         FSBlockSize::new(None, 4096, None)
     }
 
-    fn meta(&self, abs_path: &UNPath<Abs>) -> Result<FSNodeMetaData, FSError> {
+    fn meta(&self, abs_path: &UNPath<Abs>) -> Result<FSMetaData, FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
         }
 
-        let metadata = std::fs::metadata(abs_path.as_os_path())
+        let metadata = std::fs::symlink_metadata(abs_path.as_os_path())
             .map_err(|err| FSError::MetaFailed(abs_path.clone(), err.into()))?;
 
         // Target of metadata and abs_path must be the same.
         if metadata.file_type().is_dir() == abs_path.is_dir()
             || metadata.file_type().is_file() == abs_path.is_file()
+            || metadata.file_type().is_symlink() == abs_path.is_symlink()
         {
             // Set metadata.
-            let created = metadata.created().ok().unwrap();
-            let modified = metadata.modified().ok().unwrap();
-            let size = metadata.len();
+            let created = metadata.created().ok();
+            let modified = metadata.modified().ok();
+            let mut size = None;
+            let mut symlink = None;
 
-            let meta = FSNodeMetaData {
-                created,
-                modified,
-                size,
-            };
+            // Is file?
+            if metadata.is_file() {
+                size = Some(metadata.len());
+            }
+
+            // Is symlink?
+            if metadata.is_symlink() {
+                let target_path = std::fs::read_link(abs_path.as_os_path())
+                    .map_err(|err| FSError::MetaFailed(abs_path.clone(), err.into()))?;
+
+                let target_type = symlink_type(&metadata);
+                symlink = Some(FSSymlinkMeta::new(target_path, target_type));
+            }
+
+            let meta = FSMetaData::new(created, modified, size, symlink);
 
             Ok(meta)
         } else {
@@ -78,10 +92,7 @@ impl FS for LocalFS {
         }
     }
 
-    fn list_dir(
-        &self,
-        abs_dir_path: &NPath<Abs, Dir>,
-    ) -> Result<Warned<Vec<FSNode>, String>, FSError> {
+    fn list_dir(&self, abs_dir_path: &NPath<Abs, Dir>) -> Result<Vec<UNPath<Abs>>, FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
         }
@@ -89,27 +100,16 @@ impl FS for LocalFS {
         let entries = std::fs::read_dir(abs_dir_path.as_os_path())
             .map_err(|err| FSError::ListDirFailed(abs_dir_path.clone(), err.into()))?;
 
-        let mut fs_nodes = Vec::new();
-        let mut warnings = Vec::<String>::new();
+        let mut paths = Vec::new();
 
         for entry in entries {
             let entry =
                 entry.map_err(|err| FSError::ListDirFailed(abs_dir_path.clone(), err.into()))?;
-            let entry_path = entry.path();
-            let metadata = std::fs::metadata(&entry_path)
+
+            let metadata = std::fs::symlink_metadata(entry.path())
                 .map_err(|err| FSError::ListDirFailed(abs_dir_path.clone(), err.into()))?;
 
-            let created = metadata.created().ok().unwrap();
-            let modified = metadata.modified().ok().unwrap();
-            let size = metadata.len();
-
-            let fs_metadata = FSNodeMetaData {
-                created,
-                modified,
-                size,
-            };
-
-            match entry_path.to_str() {
+            match entry.path().to_str() {
                 Some(entry_str) => {
                     // Only process files and directories, skip symlinks and others.
                     if metadata.file_type().is_file() {
@@ -118,23 +118,26 @@ impl FS for LocalFS {
                                 |err| FSError::ListDirFailed(abs_dir_path.clone(), err.into()),
                             )?);
 
-                        fs_nodes.push(FSNode {
-                            abs_path: entry_abs_path,
-                            metadata: fs_metadata,
-                        });
+                        paths.push(entry_abs_path);
                     } else if metadata.file_type().is_dir() {
                         let entry_abs_path =
                             UNPath::Dir(NPath::<Abs, Dir>::try_from(entry_str).map_err(|err| {
                                 FSError::ListDirFailed(abs_dir_path.clone(), err.into())
                             })?);
 
-                        fs_nodes.push(FSNode {
-                            abs_path: entry_abs_path,
-                            metadata: fs_metadata,
-                        });
+                        paths.push(entry_abs_path);
+                    } else if metadata.file_type().is_symlink() {
+                        let entry_abs_path =
+                            UNPath::Symlink(NPath::<Abs, Symlink>::try_from(entry_str).map_err(
+                                |err| FSError::ListDirFailed(abs_dir_path.clone(), err.into()),
+                            )?);
+
+                        paths.push(entry_abs_path);
                     } else {
-                        warnings.push(format!("{} is a symlink and ignored", entry_str));
-                        // Do not push a node for symlinks or unsupported types.
+                        return Err(FSError::ListDirFailed(
+                            abs_dir_path.clone(),
+                            "Unkown file type".into(),
+                        ));
                     }
                 }
                 None => {
@@ -146,7 +149,7 @@ impl FS for LocalFS {
             }
         }
 
-        Ok(Warned::new(fs_nodes, warnings))
+        Ok(paths)
     }
 
     fn remove_file(&self, abs_file_path: &NPath<Abs, File>) -> Result<(), FSError> {
@@ -206,5 +209,45 @@ impl FS for LocalFS {
 
         // Return the file wrapped in a `Box<dyn Write>`.
         Ok(FSWrite::new(Box::new(file), None)) // This is where the `Box<dyn Write>` comes in.
+    }
+}
+
+/// Returns the symlink type encoded in the filesystem metadata.
+///
+/// - Windows: returns File / Dir based on symlink creation intent.
+/// - Unix: always returns Unknown.
+pub fn symlink_type(metadata: &Metadata) -> FSSymlinkType {
+    #[cfg(windows)]
+    {
+        windows::symlink_type(metadata)
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = metadata;
+        FSSymlinkType::Unknown
+    }
+}
+
+#[cfg(windows)]
+mod windows {
+    use crate::core::fs::fs_symlink_meta::FSSymlinkType;
+    use std::fs::Metadata;
+    use std::os::windows::fs::FileTypeExt;
+
+    pub fn symlink_type(metadata: &Metadata) -> FSSymlinkType {
+        let file_type = metadata.file_type();
+
+        if !file_type.is_symlink() {
+            return FSSymlinkType::Unknown;
+        }
+
+        if file_type.is_symlink_dir() {
+            FSSymlinkType::Dir
+        } else if file_type.is_symlink_file() {
+            FSSymlinkType::File
+        } else {
+            FSSymlinkType::Unknown
+        }
     }
 }

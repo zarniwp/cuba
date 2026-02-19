@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
+use crate::core::tasks::task_helpers::task_handle_error;
 use crate::shared::message::Info;
 use crate::shared::message::Message;
 use crate::shared::npath::Abs;
@@ -70,6 +71,24 @@ pub fn file_backup_task(
                 .src_mnt
                 .abs_dir_path
                 .add_rel_file(&src_rel_file_path);
+
+            // Retrieve metadata for the src file.
+            let src_file_metadata = match task_handle_error(
+                fs_conn
+                    .src_mnt
+                    .fs
+                    .read()
+                    .unwrap()
+                    .meta(&src_abs_file_path.clone().into()),
+                &create_task_error_msg,
+                &sender,
+            ) {
+                Some(metadata) => metadata,
+                None => {
+                    // Exit task and continue.
+                    return exit_task_and_continue(&create_task_info_msg, &sender);
+                }
+            };
 
             // Read src file signature.
             let src_file_signature = match task_read_signature(
@@ -203,6 +222,7 @@ pub fn file_backup_task(
                                 transferred_node_flags,
                                 password_id.clone(),
                                 &src_file_signature,
+                                &src_file_metadata,
                             ),
                         );
 

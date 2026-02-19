@@ -1,12 +1,11 @@
 use std::io::{Read, Write};
 use std::sync::{Arc, RwLock};
-use warned::Warned;
 
+use crate::core::fs::fs_metadata::FSMetaData;
 use crate::shared::npath::{Abs, Dir, File, NPath, UNPath};
 
 use super::fs_base::FSBlockSize;
 use super::fs_base::{FS, FSError, FSMount, FSWrite};
-use super::fs_node::{FSNode, FSNodeMetaData};
 
 /// Methods of `FSMount`.
 impl FSMount {
@@ -75,7 +74,7 @@ impl FS for NullFS {
         FSBlockSize::new(None, 4096, None)
     }
 
-    fn meta(&self, _abs_path: &UNPath<Abs>) -> Result<FSNodeMetaData, FSError> {
+    fn meta(&self, _abs_path: &UNPath<Abs>) -> Result<FSMetaData, FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
         }
@@ -83,10 +82,7 @@ impl FS for NullFS {
         Err(FSError::NotConnected)
     }
 
-    fn list_dir(
-        &self,
-        _abs_dir_path: &NPath<Abs, Dir>,
-    ) -> Result<Warned<Vec<FSNode>, String>, FSError> {
+    fn list_dir(&self, _abs_dir_path: &NPath<Abs, Dir>) -> Result<Vec<UNPath<Abs>>, FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
         }

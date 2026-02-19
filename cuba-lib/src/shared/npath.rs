@@ -100,6 +100,9 @@ pub enum File {}
 /// A dir path must target to a directory.
 pub enum Dir {}
 
+/// A dir path must target to a symlink.
+pub enum Symlink {}
+
 /// Defines a `NPathError`.
 #[derive(Error, Debug)]
 pub enum NPathError {
@@ -115,17 +118,22 @@ pub enum NPathError {
 
 /// Defines a `UNPath<K>`
 ///
-/// A union of normalized paths. Can hold either a Rel/Abs `NPath<Dir>` or `NPath<File>`.
+/// A union of normalized paths. Can hold either a Rel/Abs `NPath<File>`, `NPath<Dir>`,  or `NPath<Symlink>`.
 ///
 /// With operations:
 /// `UNPath<Rel> = UNPath<Abs> - NPath<Abs, Dir>`
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", content = "path")]
-#[serde(bound(serialize = "NPath<K, File>: Serialize, NPath<K, Dir>: Serialize"))]
-#[serde(bound(deserialize = "NPath<K, File>: Deserialize<'de>, NPath<K, Dir>: Deserialize<'de>"))]
+#[serde(bound(
+    serialize = "NPath<K, File>: Serialize, NPath<K, Dir>: Serialize, NPath<K, Symlink>: Serialize"
+))]
+#[serde(bound(
+    deserialize = "NPath<K, File>: Deserialize<'de>, NPath<K, Dir>: Deserialize<'de>, NPath<K, Symlink>: Deserialize<'de>"
+))]
 pub enum UNPath<K> {
     File(NPath<K, File>),
     Dir(NPath<K, Dir>),
+    Symlink(NPath<K, Symlink>),
 }
 
 /// Impl of `Debug` for an absolute `UNPath`.
@@ -134,6 +142,7 @@ impl fmt::Debug for UNPath<Abs> {
         match self {
             UNPath::File(abs_file_path) => write!(f, "abs:file:{}", abs_file_path.unicode),
             UNPath::Dir(abs_dir_path) => write!(f, "abs:dir:{}", abs_dir_path.unicode),
+            UNPath::Symlink(abs_sym_path) => write!(f, "abs:symlink:{}", abs_sym_path.unicode),
         }
     }
 }
@@ -144,6 +153,7 @@ impl fmt::Debug for UNPath<Rel> {
         match self {
             UNPath::File(rel_file_path) => write!(f, "rel:file:{}", rel_file_path.unicode),
             UNPath::Dir(rel_dir_path) => write!(f, "rel:dir:{}", rel_dir_path.unicode),
+            UNPath::Symlink(rel_sym_path) => write!(f, "rel:symlink:{}", rel_sym_path.unicode),
         }
     }
 }
@@ -154,6 +164,9 @@ impl fmt::Display for UNPath<Abs> {
         match self {
             UNPath::File(abs_file_path) => write!(f, "abs:file:{}", abs_file_path.unicode),
             UNPath::Dir(abs_dir_path) => write!(f, "abs:dir:{}", abs_dir_path.unicode),
+            UNPath::Symlink(abs_symlink_part) => {
+                write!(f, "abs:symlink:{}", abs_symlink_part.unicode)
+            }
         }
     }
 }
@@ -164,6 +177,7 @@ impl fmt::Display for UNPath<Rel> {
         match self {
             UNPath::File(rel_file_path) => write!(f, "rel:file:{}", rel_file_path.unicode),
             UNPath::Dir(rel_dir_path) => write!(f, "rel:dir:{}", rel_dir_path.unicode),
+            UNPath::Symlink(rel_sym_path) => write!(f, "rel:symlink:{}", rel_sym_path.unicode),
         }
     }
 }
@@ -180,6 +194,10 @@ impl FromStr for UNPath<Abs> {
         } else if let Some(path) = string.strip_prefix("abs:dir:") {
             Ok(UNPath::Dir(
                 NPath::<Abs, Dir>::try_from(path).map_err(|err| err.to_string())?,
+            ))
+        } else if let Some(path) = string.strip_prefix("abs:symlink:") {
+            Ok(UNPath::Symlink(
+                NPath::<Abs, Symlink>::try_from(path).map_err(|err| err.to_string())?,
             ))
         } else {
             Err(format!("Invalid UNPath<Abs> string: {}", string))
@@ -200,6 +218,10 @@ impl FromStr for UNPath<Rel> {
             Ok(UNPath::Dir(
                 NPath::<Rel, Dir>::try_from(path).map_err(|err| err.to_string())?,
             ))
+        } else if let Some(path) = string.strip_prefix("rel:symlink:") {
+            Ok(UNPath::Symlink(
+                NPath::<Rel, Symlink>::try_from(path).map_err(|err| err.to_string())?,
+            ))
         } else {
             Err(format!("Invalid UNPath<Rel> string: {}", string))
         }
@@ -213,6 +235,7 @@ impl<K> UNPath<K> {
         match self {
             UNPath::File(file_path) => file_path.to_path(),
             UNPath::Dir(dir_path) => dir_path.to_path(),
+            UNPath::Symlink(sym_path) => sym_path.to_path(),
         }
     }
 
@@ -232,11 +255,20 @@ impl<K> UNPath<K> {
         }
     }
 
+    /// Returns true, if the `UNPath` ends with the relative symlink `NPath`.
+    pub fn ends_with_symlink(&self, rel_sym_path: &NPath<Rel, Symlink>) -> bool {
+        match self {
+            UNPath::Symlink(sym_path) => sym_path.ends_with(rel_sym_path),
+            _ => false,
+        }
+    }
+
     /// Returns `NPath<K, File>` if file; otherwise returns `FnOnce`.
     pub fn file_or_else<F: FnOnce() -> NPath<K, File>>(self, op: F) -> NPath<K, File> {
         match self {
             UNPath::File(file_path) => file_path,
             UNPath::Dir(_dir_path) => op(),
+            UNPath::Symlink(_sym_path) => op(),
         }
     }
 
@@ -245,6 +277,16 @@ impl<K> UNPath<K> {
         match self {
             UNPath::File(_file_path) => op(),
             UNPath::Dir(dir_path) => dir_path,
+            UNPath::Symlink(_sym_path) => op(),
+        }
+    }
+
+    /// Returns `NPath<K, Symlink>` if symlink; otherwise returns `FnOnce`.
+    pub fn symlink_or_else<F: FnOnce() -> NPath<K, Symlink>>(self, op: F) -> NPath<K, Symlink> {
+        match self {
+            UNPath::File(_file_path) => op(),
+            UNPath::Dir(_dir_path) => op(),
+            UNPath::Symlink(sym_path) => sym_path,
         }
     }
 
@@ -253,6 +295,7 @@ impl<K> UNPath<K> {
         match self {
             UNPath::File(_file_path) => true,
             UNPath::Dir(_dir_path) => false,
+            UNPath::Symlink(_sym_path) => false,
         }
     }
 
@@ -261,6 +304,16 @@ impl<K> UNPath<K> {
         match self {
             UNPath::File(_file_path) => false,
             UNPath::Dir(_dir_path) => true,
+            UNPath::Symlink(_sym_path) => false,
+        }
+    }
+
+    /// Returns true if the `UNPath` is a symlink path.
+    pub fn is_symlink(&self) -> bool {
+        match self {
+            UNPath::File(_file_path) => false,
+            UNPath::Dir(_dir_path) => false,
+            UNPath::Symlink(_sym_path) => true,
         }
     }
 
@@ -269,6 +322,7 @@ impl<K> UNPath<K> {
         match self {
             UNPath::File(file_path) => file_path.to_unicode(),
             UNPath::Dir(dir_path) => dir_path.to_unicode(),
+            UNPath::Symlink(sym_path) => sym_path.to_unicode(),
         }
     }
 
@@ -277,6 +331,7 @@ impl<K> UNPath<K> {
         match self {
             UNPath::File(file_path) => file_path.to_nfc(),
             UNPath::Dir(dir_path) => dir_path.to_nfc(),
+            UNPath::Symlink(sym_path) => sym_path.to_nfc(),
         }
     }
 }
@@ -288,6 +343,7 @@ impl UNPath<Abs> {
         match self {
             UNPath::File(abs_file_path) => abs_file_path.as_os_path(),
             UNPath::Dir(abs_dir_path) => abs_dir_path.as_os_path(),
+            UNPath::Symlink(abs_sym_path) => abs_sym_path.as_os_path(),
         }
     }
 
@@ -304,6 +360,12 @@ impl UNPath<Abs> {
                 Ok(rel_path) => Ok(rel_path.into()),
                 Err(err) => Err(err),
             },
+            UNPath::Symlink(self_abs_sym_path) => {
+                match self_abs_sym_path.sub_abs_dir(abs_dir_path) {
+                    Ok(rel_path) => Ok(rel_path.into()),
+                    Err(err) => Err(err),
+                }
+            }
         }
     }
 
@@ -312,6 +374,7 @@ impl UNPath<Abs> {
         match self {
             UNPath::File(file_path) => Box::new(file_path.components()),
             UNPath::Dir(dir_path) => Box::new(dir_path.components()),
+            UNPath::Symlink(sym_path) => Box::new(sym_path.components()),
         }
     }
 
@@ -320,6 +383,7 @@ impl UNPath<Abs> {
         match self {
             UNPath::File(file_path) => file_path.compact_unicode(),
             UNPath::Dir(dir_path) => dir_path.compact_unicode(),
+            UNPath::Symlink(sym_path) => sym_path.compact_unicode(),
         }
     }
 }
@@ -331,6 +395,7 @@ impl UNPath<Rel> {
         match self {
             UNPath::File(file_path) => Box::new(file_path.components()),
             UNPath::Dir(dir_path) => Box::new(dir_path.components()),
+            UNPath::Symlink(sym_path) => Box::new(sym_path.components()),
         }
     }
 
@@ -339,6 +404,7 @@ impl UNPath<Rel> {
         match self {
             UNPath::File(file_path) => file_path.compact_unicode(),
             UNPath::Dir(dir_path) => dir_path.compact_unicode(),
+            UNPath::Symlink(sym_path) => sym_path.compact_unicode(),
         }
     }
 }
@@ -363,6 +429,16 @@ where
     }
 }
 
+/// Impl of `From` (clone) for a symlink `UNPath`.
+impl<K> From<&NPath<K, Symlink>> for UNPath<K>
+where
+    NPath<K, Symlink>: Clone,
+{
+    fn from(path: &NPath<K, Symlink>) -> Self {
+        UNPath::Symlink(path.clone())
+    }
+}
+
 /// Impl of `From` for a file `UNPath`.
 impl<K> From<NPath<K, File>> for UNPath<K> {
     fn from(path: NPath<K, File>) -> Self {
@@ -377,12 +453,20 @@ impl<K> From<NPath<K, Dir>> for UNPath<K> {
     }
 }
 
+/// Impl of `From` for a symlink `UNPath`.
+impl<K> From<NPath<K, Symlink>> for UNPath<K> {
+    fn from(path: NPath<K, Symlink>) -> Self {
+        UNPath::Symlink(path)
+    }
+}
+
 /// Impl of `Clone` for `UNPath`.
 impl<K> Clone for UNPath<K> {
     fn clone(&self) -> Self {
         match self {
             UNPath::File(file_path) => UNPath::File(file_path.clone()),
             UNPath::Dir(dir_path) => UNPath::Dir(dir_path.clone()),
+            UNPath::Symlink(sym_path) => UNPath::Symlink(sym_path.clone()),
         }
     }
 }
@@ -393,6 +477,7 @@ impl<K1, K2> PartialEq<UNPath<K2>> for UNPath<K1> {
         match (self, other) {
             (UNPath::File(file_path_1), UNPath::File(file_path_2)) => file_path_1 == file_path_2,
             (UNPath::Dir(dir_path_1), UNPath::Dir(dir_path_2)) => dir_path_1 == dir_path_2,
+            (UNPath::Symlink(sym_path_1), UNPath::Symlink(sym_path_2)) => sym_path_1 == sym_path_2,
             _ => false,
         }
     }
@@ -413,6 +498,10 @@ impl<K> Hash for UNPath<K> {
                 1u8.hash(state);
                 dir_path.hash(state);
             }
+            UNPath::Symlink(sym_path) => {
+                2u8.hash(state);
+                sym_path.hash(state);
+            }
         }
     }
 }
@@ -428,8 +517,10 @@ impl<K> Hash for UNPath<K> {
 /// Operations:
 /// `NPath<Abs, Dir> = NPath<Abs, Dir> + NPath<Rel, Dir>`
 /// `NPath<Abs, File> = NPath<Abs, Dir> + NPath<Rel, File>`
+/// `NPath<Abs, Symlink> = NPath<Abs, Dir> + NPath<Rel, Symlink>`
 /// `NPath<Abs, Dir> = NPath<Abs, Dir> - NPath<Rel, Dir>`
 /// `NPath<Abs, Dir> = NPath<Abs, File> - NPath<Rel, File>`
+/// `NPath<Abs, Dir> = NPath<Abs, Symlink> - NPath<Rel, Symlink>`
 /// `NPath<Rel, T> = NPath<Abs, T> - NPath<Abs, Dir>`
 pub struct NPath<K, T> {
     unicode: String,
@@ -715,6 +806,11 @@ impl NPath<Abs, Dir> {
         NPath::from_unicode(&(self.unicode.clone() + "/" + &rel_file_path.unicode))
     }
 
+    /// `NPath<Abs, Symlink> = NPath<Abs, Dir> + NPath<Rel, Symlink>`
+    pub fn add_rel_symlink(&self, rel_sym_path: &NPath<Rel, Symlink>) -> NPath<Abs, Symlink> {
+        NPath::from_unicode(&(self.unicode.clone() + "/" + &rel_sym_path.unicode))
+    }
+
     /// `NPath<Abs, Dir> = NPath<Abs, Dir> - NPath<Rel, Dir>`
     pub fn sub_rel_dir(
         &self,
@@ -793,6 +889,10 @@ impl NPath<Abs, Dir> {
                 let abs_dir_path = NPath::<Abs, Dir>::try_from(union_path)?;
                 Ok(UNPath::Dir(abs_dir_path))
             }
+            UNPath::Symlink(_rel_sym_path) => {
+                let abs_sym_path = NPath::<Abs, Symlink>::try_from(union_path)?;
+                Ok(UNPath::Symlink(abs_sym_path))
+            }
         }
     }
 }
@@ -858,6 +958,20 @@ impl<K> NPath<K, File> {
     /// Returns the extension of the file `NPath`.
     pub fn extension(&self) -> Option<&OsStr> {
         Path::new(&self.unicode).extension()
+    }
+}
+
+/// Methods of an absolute symlink `NPath`.
+impl NPath<Abs, Symlink> {
+    /// `NPath<Abs, Symlink> = NPath<Abs, Symlink> - NPath<Rel, Symlink>`
+    pub fn sub_rel_symlink(
+        &self,
+        rel_sym_path: &NPath<Rel, Symlink>,
+    ) -> Result<NPath<Abs, Symlink>, NPathError> {
+        match sub_from_end(&self.unicode, &self.nfc, &rel_sym_path.nfc) {
+            Ok(unicode) => Ok(NPath::from_unicode(&unicode)),
+            Err(err) => Err(err),
+        }
     }
 }
 

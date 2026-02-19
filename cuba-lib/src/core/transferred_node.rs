@@ -8,7 +8,11 @@ use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
+use std::time::SystemTime;
 
+use crate::core::fs::fs_metadata::FSMetaData;
+use crate::core::fs::fs_symlink_meta::FSSymlinkMeta;
+use crate::shared::npath::Symlink;
 use crate::shared::npath::{Dir, File, NPath, Rel, UNPath};
 
 /// Defines the `Flags` for transferred nodes.
@@ -148,6 +152,15 @@ pub struct TransferredNode {
 
     // The signature of the src node.
     pub src_signature: Option<[u8; 32]>,
+
+    // Source created.
+    pub src_created: Option<SystemTime>,
+
+    // Source modified.
+    pub src_modified: Option<SystemTime>,
+
+    // Source symlink meta.
+    pub src_symlink_meta: Option<FSSymlinkMeta>,
 }
 
 /// Methods of `TransferredNode`.
@@ -158,22 +171,42 @@ impl TransferredNode {
         flags: Flags,
         password_id: Option<String>,
         src_signature: &[u8; 32],
+        metadata: &FSMetaData,
     ) -> Self {
         Self {
             dest_rel_path: path.into(),
             flags,
             password_id,
             src_signature: Some(*src_signature),
+            src_created: metadata.created,
+            src_modified: metadata.modified,
+            src_symlink_meta: None,
         }
     }
 
     /// Creates a new `TransferredNode` instance from a dir.
-    pub fn from_dir(path: &NPath<Rel, Dir>, flags: Flags) -> Self {
+    pub fn from_dir(path: &NPath<Rel, Dir>, flags: Flags, metadata: &FSMetaData) -> Self {
         Self {
             dest_rel_path: path.into(),
             flags,
             password_id: None,
             src_signature: None,
+            src_created: metadata.created,
+            src_modified: metadata.modified,
+            src_symlink_meta: None,
+        }
+    }
+
+    /// Creates a new `TransferredNode` instance from a symlink.
+    pub fn from_symlink(path: &NPath<Rel, Symlink>, flags: Flags, metadata: &FSMetaData) -> Self {
+        Self {
+            dest_rel_path: path.into(),
+            flags,
+            password_id: None,
+            src_signature: None,
+            src_created: metadata.created,
+            src_modified: metadata.modified,
+            src_symlink_meta: metadata.symlink_meta.clone(),
         }
     }
 }

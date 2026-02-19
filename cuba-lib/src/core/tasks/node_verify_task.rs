@@ -110,7 +110,7 @@ pub fn node_verify_task(
             if let Some(transferred_node) = transferred_node_opt {
                 // If verify flags match, verify ...
                 if verify_flags.matches(transferred_node.flags) {
-                    // Is dir or file?
+                    // Type?
                     match src_rel_path {
                         UNPath::Dir(ref src_rel_dir_path) => {
                             // Directory exists?
@@ -228,6 +228,31 @@ pub fn node_verify_task(
                                 transferred_node.src_signature,
                                 Some(*transfer_file_signature.lock().unwrap()),
                             );
+
+                            set_verified_ok(
+                                ok,
+                                &src_rel_path,
+                                transferred_node.flags,
+                                &transferred_nodes,
+                                &create_task_info_msg,
+                                &create_task_error_msg,
+                                &sender,
+                            );
+                        }
+                        UNPath::Symlink(ref src_rel_sym_path) => {
+                            // Symlink exists?
+                            let ok = match fs_conn.src_mnt.fs.read().unwrap().meta(
+                                &fs_conn
+                                    .src_mnt
+                                    .abs_dir_path
+                                    .add_rel_symlink(src_rel_sym_path)
+                                    .into(),
+                            ) {
+                                Ok(metadata) => {
+                                    transferred_node.src_symlink_meta == metadata.symlink_meta
+                                }
+                                Err(_) => false,
+                            };
 
                             set_verified_ok(
                                 ok,
