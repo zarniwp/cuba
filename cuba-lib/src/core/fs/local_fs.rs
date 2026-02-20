@@ -275,10 +275,7 @@ mod unix {
     }
 
     /// Creates a symlink.
-    pub fn create_symlink(
-        link_path: &Path,
-        target_path: &Path
-    ) -> io::Result<()> {
+    pub fn create_symlink(link_path: &Path, target_path: &Path) -> io::Result<()> {
         std::os::unix::fs::symlink(target_path, link_path)
     }
 }
