@@ -2,7 +2,8 @@ use std::io::{Read, Write};
 use std::sync::{Arc, RwLock};
 
 use crate::core::fs::fs_metadata::FSMetaData;
-use crate::shared::npath::{Abs, Dir, File, NPath, UNPath};
+use crate::core::fs::fs_symlink_meta::FSSymlinkMeta;
+use crate::shared::npath::{Abs, Dir, File, NPath, Symlink, UNPath};
 
 use super::fs_base::FSBlockSize;
 use super::fs_base::{FS, FSError, FSMount, FSWrite};
@@ -107,6 +108,18 @@ impl FS for NullFS {
     }
 
     fn mkdir(&self, _abs_dir_path: &NPath<Abs, Dir>) -> Result<(), FSError> {
+        if !self.connected {
+            return Err(FSError::NotConnected);
+        }
+
+        Err(FSError::NotSupported)
+    }
+
+    fn mklink(
+        &self,
+        _abs_sym_path: &NPath<Abs, Symlink>,
+        _symlink_meta: &FSSymlinkMeta,
+    ) -> Result<(), FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
         }

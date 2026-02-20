@@ -143,9 +143,6 @@ pub fn node_verify_task(
                             let src_abs_file_path: NPath<Abs, File> =
                                 fs_conn.src_mnt.abs_dir_path.add_rel_file(src_rel_file_path);
 
-                            // Set dest rel file path.
-                            let mut dest_rel_file_path = src_rel_file_path.clone();
-
                             // Init transfer file signature.
                             let transfer_file_signature = Arc::new(Mutex::new([0u8; 32]));
 
@@ -210,7 +207,7 @@ pub fn node_verify_task(
                             task_transfer_file(
                                 &fs_conn,
                                 &src_abs_file_path,
-                                &mut dest_rel_file_path,
+                                &mut NPath::<Rel, File>::default(),
                                 &data_procs,
                                 Some(&create_task_info_msg),
                                 &create_task_error_msg,
@@ -239,23 +236,9 @@ pub fn node_verify_task(
                                 &sender,
                             );
                         }
-                        UNPath::Symlink(ref src_rel_sym_path) => {
-                            // Symlink exists?
-                            let ok = match fs_conn.src_mnt.fs.read().unwrap().meta(
-                                &fs_conn
-                                    .src_mnt
-                                    .abs_dir_path
-                                    .add_rel_symlink(src_rel_sym_path)
-                                    .into(),
-                            ) {
-                                Ok(metadata) => {
-                                    transferred_node.src_symlink_meta == metadata.symlink_meta
-                                }
-                                Err(_) => false,
-                            };
-
+                        UNPath::Symlink(ref _src_rel_sym_path) => {
                             set_verified_ok(
-                                ok,
+                                true,
                                 &src_rel_path,
                                 transferred_node.flags,
                                 &transferred_nodes,

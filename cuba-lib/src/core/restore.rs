@@ -171,7 +171,10 @@ pub fn run_restore(
     task_worker.run(
         run_state.clone(),
         threads,
-        Arc::new(symlink_restore_task(arc_mutex_src_rel_symlinks)),
+        Arc::new(symlink_restore_task(
+            arc_mutex_src_rel_symlinks,
+            arc_transferred_nodes_read.clone(),
+        )),
     );
 
     // Drop task worker.

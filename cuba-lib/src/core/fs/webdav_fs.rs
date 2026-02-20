@@ -14,8 +14,9 @@ use unicode_normalization::UnicodeNormalization;
 use url::ParseError;
 
 use crate::core::fs::fs_metadata::FSMetaData;
+use crate::core::fs::fs_symlink_meta::FSSymlinkMeta;
 use crate::shared::npath::{
-    Abs, Dir, File, NPath, NPathComponent, NPathError, NPathRoot, Rel, UNPath,
+    Abs, Dir, File, NPath, NPathComponent, NPathError, NPathRoot, Rel, Symlink, UNPath,
 };
 
 use super::fs_base::{FS, FSBlockSize, FSError, FSWrite};
@@ -656,6 +657,18 @@ impl FS for WebDAVFS {
             }
             Err(err) => Err(FSError::MkDirFailed(abs_dir_path.clone(), err.into())),
         }
+    }
+
+    fn mklink(
+        &self,
+        _abs_sym_path: &NPath<Abs, Symlink>,
+        _symlink_meta: &FSSymlinkMeta,
+    ) -> Result<(), FSError> {
+        if !self.connected {
+            return Err(FSError::NotConnected);
+        }
+
+        Err(FSError::NotSupported)
     }
 
     fn read_data(&self, abs_file_path: &NPath<Abs, File>) -> Result<Box<dyn Read + Send>, FSError> {

@@ -1,8 +1,9 @@
 use crate::core::fs::fs_metadata::FSMetaData;
 use crate::core::fs::fs_symlink_meta::{FSSymlinkMeta, FSSymlinkType};
 use crate::shared::npath::{Abs, Dir, File, NPath, Symlink, UNPath};
-use std::fs::Metadata;
-use std::io::Read;
+use std::fs::FileType;
+use std::io::{self, Read};
+use std::path::Path;
 
 use super::fs_base::FSBlockSize;
 use super::fs_base::{FS, FSError, FSWrite};
@@ -77,7 +78,7 @@ impl FS for LocalFS {
                 let target_path = std::fs::read_link(abs_path.as_os_path())
                     .map_err(|err| FSError::MetaFailed(abs_path.clone(), err.into()))?;
 
-                let target_type = symlink_type(&metadata);
+                let target_type = symlink_type(&metadata.file_type());
                 symlink = Some(FSSymlinkMeta::new(target_path, target_type));
             }
 
@@ -185,6 +186,25 @@ impl FS for LocalFS {
         }
     }
 
+    fn mklink(
+        &self,
+        abs_sym_path: &NPath<Abs, Symlink>,
+        symlink_meta: &FSSymlinkMeta,
+    ) -> Result<(), FSError> {
+        if !self.connected {
+            return Err(FSError::NotConnected);
+        }
+
+        match create_symlink(
+            &abs_sym_path.as_os_path(),
+            &symlink_meta.target_path,
+            &symlink_meta.target_type,
+        ) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(FSError::MkLinkFailed(abs_sym_path.clone(), err.into())),
+        }
+    }
+
     fn read_data(&self, abs_file_path: &NPath<Abs, File>) -> Result<Box<dyn Read + Send>, FSError> {
         if !self.connected {
             return Err(FSError::NotConnected);
@@ -212,42 +232,91 @@ impl FS for LocalFS {
     }
 }
 
-/// Returns the symlink type encoded in the filesystem metadata.
-///
-/// - Windows: returns File / Dir based on symlink creation intent.
-/// - Unix: always returns Unknown.
-pub fn symlink_type(metadata: &Metadata) -> FSSymlinkType {
+/// Returns a symlink type.
+fn symlink_type(file_type: &FileType) -> FSSymlinkType {
     #[cfg(windows)]
     {
-        windows::symlink_type(metadata)
+        windows::symlink_type(file_type)
     }
 
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
-        let _ = metadata;
-        FSSymlinkType::Unknown
+        unix::symlink_type(file_type)
     }
 }
 
+/// Creates a symlink.
+fn create_symlink(
+    link_path: &Path,
+    target_path: &Path,
+    target_type: &FSSymlinkType,
+) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        windows::create_symlink(link_path, target_path, target_type)
+    }
+
+    #[cfg(unix)]
+    {
+        unix::create_symlink(link_path, target_path, target_type)
+    }
+}
+
+#[cfg(unix)]
+mod unix {
+    use crate::core::fs::fs_symlink_meta::FSSymlinkType;
+    use std::fs::FileType;
+    use std::io;
+    use std::path::Path;
+
+    /// Returns a symlink type.
+    pub fn symlink_type(file_type: &FileType) -> FSSymlinkType {
+        FSSymlinkType::Unknown
+    }
+
+    /// Creates a symlink.
+    pub fn create_symlink(
+        link_path: &Path,
+        target_path: &Path,
+        target_type: &FSSymlinkType,
+    ) -> io::Result<()> {
+        std::os::unix::fs::symlink(link_path, target_type)
+    }
+}
+
+/// Config for Windows
 #[cfg(windows)]
 mod windows {
     use crate::core::fs::fs_symlink_meta::FSSymlinkType;
-    use std::fs::Metadata;
+    use std::fs::FileType;
+    use std::io;
     use std::os::windows::fs::FileTypeExt;
+    use std::path::Path;
 
-    pub fn symlink_type(metadata: &Metadata) -> FSSymlinkType {
-        let file_type = metadata.file_type();
-
-        if !file_type.is_symlink() {
-            return FSSymlinkType::Unknown;
-        }
-
-        if file_type.is_symlink_dir() {
-            FSSymlinkType::Dir
-        } else if file_type.is_symlink_file() {
+    /// Returns the symlink type.
+    pub fn symlink_type(file_type: &FileType) -> FSSymlinkType {
+        if file_type.is_symlink_file() {
             FSSymlinkType::File
+        } else if file_type.is_symlink_dir() {
+            FSSymlinkType::Dir
         } else {
             FSSymlinkType::Unknown
+        }
+    }
+
+    /// Creates a symlink.
+    pub fn create_symlink(
+        link_path: &Path,
+        target_path: &Path,
+        target_type: &FSSymlinkType,
+    ) -> io::Result<()> {
+        match target_type {
+            FSSymlinkType::File => std::os::windows::fs::symlink_file(target_path, link_path),
+            FSSymlinkType::Dir => std::os::windows::fs::symlink_dir(target_path, link_path),
+            FSSymlinkType::Unknown => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Invalid symlink type",
+            )),
         }
     }
 }

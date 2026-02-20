@@ -79,6 +79,9 @@ pub fn symlink_backup_task(
                 }
             };
 
+            // Set transfer_src to true.
+            let mut transfer_src = true;
+
             // Set transferred node flags to backup flags.
             let mut transferred_node_flags: Flags = backup_flags.flags();
 
@@ -91,34 +94,52 @@ pub fn symlink_backup_task(
             {
                 // ... and the flags match, ...
                 if backup_flags.matches(transferred_node.flags) {
-                    // Update transferred node flags.
-                    transferred_node_flags.insert(transferred_node.flags);
+                    //... and symlink meta is the same, ...
+                    if src_sym_metadata.symlink_meta == transferred_node.src_symlink_meta {
+                        // ... then we don't need to transfer the src.
+                        transfer_src = false;
 
-                    // Remove orphan flag.
-                    transferred_node_flags.remove(Flags::ORPHAN);
+                        // Update transferred node flags.
+                        transferred_node_flags.insert(transferred_node.flags);
+
+                        // Remove orphan flag.
+                        transferred_node_flags.remove(Flags::ORPHAN);
+                    }
                 }
             }
 
-            // Update flags.
-            transferred_nodes
-                .write()
-                .unwrap()
-                .view_mut::<Backup>()
-                .set_flags(&src_rel_sym_path.clone().into(), transferred_node_flags);
+            // Transfer source to destination - if needed.
+            if transfer_src {
+                // Set transferred symlink to transferred nodes.
+                transferred_nodes
+                    .write()
+                    .unwrap()
+                    .view_mut::<Backup>()
+                    .set_transferred_node(
+                        &src_rel_sym_path.clone().into(),
+                        &TransferredNode::from_symlink(
+                            &src_rel_sym_path,
+                            transferred_node_flags,
+                            &src_sym_metadata,
+                        ),
+                    );
 
-            // Set symlink to transferred nodes.
-            transferred_nodes
-                .write()
-                .unwrap()
-                .view_mut::<Backup>()
-                .set_transferred_node(
-                    &src_rel_sym_path.clone().into(),
-                    &TransferredNode::from_symlink(
-                        &src_rel_sym_path,
-                        transferred_node_flags,
-                        &src_sym_metadata,
-                    ),
-                );
+                sender
+                    .send(create_task_info_msg(Arc::new(TaskInfo::Transferred)))
+                    .unwrap();
+            } else {
+                // Update flags.
+                transferred_nodes
+                    .write()
+                    .unwrap()
+                    .view_mut::<Backup>()
+                    .set_flags(&src_rel_sym_path.clone().into(), transferred_node_flags);
+
+                // No transfer needed.
+                sender
+                    .send(create_task_info_msg(Arc::new(TaskInfo::UpToDate)))
+                    .unwrap();
+            }
 
             // Task finished
             sender

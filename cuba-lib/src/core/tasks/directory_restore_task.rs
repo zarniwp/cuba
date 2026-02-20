@@ -74,7 +74,7 @@ pub fn directory_restore_task(src_rel_dirs: Arc<Mutex<VecDeque<NPath<Rel, Dir>>>
                         &create_task_error_msg,
                         &sender,
                     ) {
-                        Some(_meta) => {
+                        Some(_metadata) => {
                             // Dir exists.
 
                             sender

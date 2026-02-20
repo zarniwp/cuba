@@ -5,7 +5,8 @@ use std::thread::JoinHandle;
 use thiserror::Error;
 
 use crate::core::fs::fs_metadata::FSMetaData;
-use crate::shared::npath::{Abs, Dir, File, NPath, UNPath};
+use crate::core::fs::fs_symlink_meta::FSSymlinkMeta;
+use crate::shared::npath::{Abs, Dir, File, NPath, Symlink, UNPath};
 
 pub type FSHandle = Arc<RwLock<dyn FS>>;
 
@@ -243,6 +244,10 @@ pub enum FSError {
     #[error("Failed to create directory {0:?}")]
     MkDirFailed(NPath<Abs, Dir>, #[source] Box<dyn Error + Send + Sync>),
 
+    /// Error when a symlink cannot be created, including the destination symlink path.
+    #[error("Failed to create symlink {0:?}")]
+    MkLinkFailed(NPath<Abs, Symlink>, #[source] Box<dyn Error + Send + Sync>),
+
     /// Error when reading data from a file fails, including the source file path.
     #[error("Failed to read data from file {0:?}")]
     ReadFailed(NPath<Abs, File>, #[source] Box<dyn Error + Send + Sync>),
@@ -376,6 +381,18 @@ pub trait FS: Send + Sync {
     /// - Returns [`FSError::NotConnected`] when the fs is not connected.
     /// - Returns [`FSError::MkDirFailed`] when `mkdir` failed.
     fn mkdir(&self, abs_dir_path: &NPath<Abs, Dir>) -> Result<(), FSError>;
+
+    /// Creates a symlink at the specified `abs_sym_path`.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`FSError::NotConnected`] when the fs is not connected.
+    /// - Returns [`FSError::MkLinkFailed`] when `mklink` failed.
+    fn mklink(
+        &self,
+        abs_sym_path: &NPath<Abs, Symlink>,
+        symlink_meta: &FSSymlinkMeta,
+    ) -> Result<(), FSError>;
 
     /// Reads binary data from the file `abs_file_path`.
     /// Returns a reader.
