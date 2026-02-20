@@ -258,7 +258,7 @@ fn create_symlink(
 
     #[cfg(unix)]
     {
-        unix::create_symlink(link_path, target_path, target_type)
+        unix::create_symlink(link_path, target_path)
     }
 }
 
@@ -270,17 +270,16 @@ mod unix {
     use std::path::Path;
 
     /// Returns a symlink type.
-    pub fn symlink_type(file_type: &FileType) -> FSSymlinkType {
+    pub fn symlink_type(_file_type: &FileType) -> FSSymlinkType {
         FSSymlinkType::Unknown
     }
 
     /// Creates a symlink.
     pub fn create_symlink(
         link_path: &Path,
-        target_path: &Path,
-        target_type: &FSSymlinkType,
+        target_path: &Path
     ) -> io::Result<()> {
-        std::os::unix::fs::symlink(link_path, target_type)
+        std::os::unix::fs::symlink(target_path, link_path)
     }
 }
 
