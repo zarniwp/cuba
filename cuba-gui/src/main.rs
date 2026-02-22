@@ -221,6 +221,7 @@ impl CubaGui {
         // The config view.
         let config_view = Arc::new(RwLock::new(ConfigView::new(
             cuba.clone(),
+            sender.clone(),
             password_ids.clone(),
         )));
 

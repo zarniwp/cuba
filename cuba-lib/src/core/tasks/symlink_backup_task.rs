@@ -79,8 +79,8 @@ pub fn symlink_backup_task(
                 }
             };
 
-            // Set transfer_src to true.
-            let mut transfer_src = true;
+            // Set symlink_up_to_date to false.
+            let mut symlink_up_to_date = false;
 
             // Set transferred node flags to backup flags.
             let mut transferred_node_flags: Flags = backup_flags.flags();
@@ -96,8 +96,8 @@ pub fn symlink_backup_task(
                 if backup_flags.matches(transferred_node.flags) {
                     //... and symlink meta is the same, ...
                     if src_sym_metadata.symlink_meta == transferred_node.src_symlink_meta {
-                        // ... then we don't need to transfer the src.
-                        transfer_src = false;
+                        // ... symlink is up to date.
+                        symlink_up_to_date = true;
 
                         // Update transferred node flags.
                         transferred_node_flags.insert(transferred_node.flags);
@@ -108,9 +108,20 @@ pub fn symlink_backup_task(
                 }
             }
 
-            // Transfer source to destination - if needed.
-            if transfer_src {
-                // Set transferred symlink to transferred nodes.
+            // Symlink is up to date
+            if symlink_up_to_date {
+                // Update flags.
+                transferred_nodes
+                    .write()
+                    .unwrap()
+                    .view_mut::<Backup>()
+                    .set_flags(&src_rel_sym_path.clone().into(), transferred_node_flags);
+
+                sender
+                    .send(create_task_info_msg(Arc::new(TaskInfo::UpToDate)))
+                    .unwrap();
+            } else {
+                // Set symlink to transferred nodes.
                 transferred_nodes
                     .write()
                     .unwrap()
@@ -126,18 +137,6 @@ pub fn symlink_backup_task(
 
                 sender
                     .send(create_task_info_msg(Arc::new(TaskInfo::Transferred)))
-                    .unwrap();
-            } else {
-                // Update flags.
-                transferred_nodes
-                    .write()
-                    .unwrap()
-                    .view_mut::<Backup>()
-                    .set_flags(&src_rel_sym_path.clone().into(), transferred_node_flags);
-
-                // No transfer needed.
-                sender
-                    .send(create_task_info_msg(Arc::new(TaskInfo::UpToDate)))
                     .unwrap();
             }
 

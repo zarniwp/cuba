@@ -1,11 +1,17 @@
 #![allow(dead_code)]
 
-use std::sync::{Arc, RwLock};
+use std::{
+    path::Path,
+    sync::{Arc, RwLock},
+};
 
+use crossbeam_channel::Sender;
 use cuba_lib::{
     core::cuba::Cuba,
     shared::{
         config::{ConfigEntryKey, ConfigEntryMut, ConfigEntryType},
+        config_writer::ConfigWriter,
+        message::Message,
         npath::{Abs, Dir, Rel},
     },
 };
@@ -19,6 +25,7 @@ use crate::{
 /// Defines a `ConfigView`.
 pub struct ConfigView {
     cuba: Arc<RwLock<Cuba>>,
+    sender: Sender<Arc<dyn Message>>,
     password_ids: Arc<PasswordIDs>,
     selected_config_entry_key: Option<ConfigEntryKey>,
     npath_editor_buffer: NPathEditorBuffer,
@@ -29,9 +36,14 @@ pub struct ConfigView {
 /// Methods of `ConfigView`.
 impl ConfigView {
     /// Creates a new `ConfigView`.
-    pub fn new(cuba: Arc<RwLock<Cuba>>, password_ids: Arc<PasswordIDs>) -> Self {
+    pub fn new(
+        cuba: Arc<RwLock<Cuba>>,
+        sender: Sender<Arc<dyn Message>>,
+        password_ids: Arc<PasswordIDs>,
+    ) -> Self {
         Self {
             cuba,
+            sender,
             password_ids,
             selected_config_entry_key: None,
             npath_editor_buffer: NPathEditorBuffer::new(),
@@ -237,8 +249,8 @@ impl ConfigView {
                                                     for fs_entry in &fs_entries {
                                                         ui.selectable_value(
                                                             &mut backup.src_fs,
-                                                            fs_entry.to_string(),
-                                                            fs_entry.to_string(),
+                                                            fs_entry.name.to_string(),
+                                                            fs_entry.name.to_string(),
                                                         );
                                                     }
                                                 });
@@ -402,8 +414,8 @@ impl ConfigView {
                                                     for fs_entry in &fs_entries {
                                                         ui.selectable_value(
                                                             &mut restore.src_fs,
-                                                            fs_entry.to_string(),
-                                                            fs_entry.to_string(),
+                                                            fs_entry.name.to_string(),
+                                                            fs_entry.name.to_string(),
                                                         );
                                                     }
                                                 });
@@ -596,7 +608,11 @@ impl AppView for ConfigView {
                     ui.add_space(ui.available_width() - 95.0);
 
                     // The save config button.
-                    if ui.button("Save Config").clicked() {}
+                    if ui.button("Save Config").clicked()
+                        && let Some(config) = self.cuba.read().unwrap().config()
+                    {
+                        ConfigWriter::write(self.sender.clone(), Path::new("cuba.toml"), config);
+                    }
                 });
             });
 

@@ -2,6 +2,7 @@ use crossbeam_channel::Sender;
 use std::sync::Arc;
 
 use crate::core::run_state::RunState;
+use crate::core::transferred_node::Backup;
 use crate::send_error;
 use crate::shared::clean_message::{CleanError, CleanInfo, CleanMessage};
 use crate::shared::message::Message;
@@ -47,6 +48,26 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
             transferred_nodes_read.node_count() as u64,
         )))
         .unwrap();
+
+    // Symlinks do not exist as backup files, so we have to threat them in a different way.
+    for (src_rel_path, transferred_node) in transferred_nodes_read.iter() {
+        // If symlink and clean flags do not match, keep the symlink.
+        if transferred_node.src_symlink_meta.is_some()
+            && !clean_flags.matches(transferred_node.flags)
+        {
+            transferred_nodes_write
+                .view_mut::<Backup>()
+                .set_transferred_node(src_rel_path, transferred_node);
+
+            // Progress tick.
+            sender
+                .send(Arc::new(ProgressMessage::new(
+                    Arc::new(ProgressInfo::Ticks),
+                    1,
+                )))
+                .unwrap();
+        }
+    }
 
     fs_mnt
         .fs

@@ -4,7 +4,7 @@ use crossbeam_channel::Sender;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-use crate::{send_error, send_info, shared::message::Message};
+use crate::{send_error, shared::message::Message};
 
 use super::npath::{Abs, Dir, NPath, Rel};
 
@@ -27,22 +27,6 @@ pub fn load_config_from_str(sender: Sender<Arc<dyn Message>>, config: &str) -> O
             send_error!(sender, err);
             None
         }
-    }
-}
-
-/// Save config to file.
-pub fn save_config_to_file(sender: Sender<Arc<dyn Message>>, path: &str, config: &Config) {
-    let content = match toml::to_string_pretty(config) {
-        Ok(content) => content,
-        Err(err) => {
-            send_error!(sender, err);
-            return;
-        }
-    };
-
-    match std::fs::write(path, content) {
-        Ok(_) => send_info!(sender, "Config saved to {}", path),
-        Err(err) => send_error!(sender, err),
     }
 }
 
