@@ -13,19 +13,19 @@ use super::npath::{Rel, UNPath};
 /// Defines a `TaskError`.
 #[derive(Error, Debug)]
 pub enum TaskError {
-    /// Can used by cli or gui to show that the transfer of a file or directory was not successful.   
+    /// Can be used by cli or gui to show that the transfer of a file or directory was not successful.   
     #[error("Transfer failed")]
     TransferFailed,
 
-    /// Can used by cli or gui to show that the verification of a file or directory was not successful.   
-    #[error("Verified failed")]
+    /// Can be used by cli or gui to show that the verification of a file or directory was not successful.   
+    #[error("Verification failed")]
     VerifiedFailed,
 
-    /// Can used by cli or gui to show that a transferred node was not found.
+    /// Can be used by cli or gui to show that a transferred node was not found.
     #[error("No transferred node found")]
     NoTransferredNode,
 
-    /// Can used by cli or gui to show that password id is missing.
+    /// Can be used by cli or gui to show that password id is missing.
     #[error("No password id available")]
     NoPasswordId,
 }
@@ -39,31 +39,31 @@ pub enum TaskError {
 /// directory simply means it already exists.
 #[derive(Display, Debug, PartialEq)]
 pub enum TaskInfo {
-    /// Can used by cli or gui to show that the task is going to start another work.
+    /// Can be used by cli or gui to show that the task is going to start another work.
     #[strum(to_string = "Start process ...")]
     Start,
 
-    /// Can used by cli or gui to show that the task is transferring a file or directory.
+    /// Can be used by cli or gui to show that the task is transferring a file or directory.
     #[strum(to_string = "Transferring ...")]
     Transferring,
 
-    /// Can used by cli or gui to show that the task has finished doing its current work.
+    /// Can be used by cli or gui to show that the task has finished doing its current work.
     #[strum(to_string = "Finished!")]
     Finished,
 
-    /// Can used by cli or gui to show that the task has finished transferring a file or directory.
+    /// Can be used by cli or gui to show that the task has finished transferring a file or directory.
     #[strum(to_string = "Transferred")]
     Transferred,
 
-    /// Can used by cli or gui to show a progress indication of the working task.
+    /// Can be used by cli or gui to show a progress indication of the working task.
     #[strum(to_string = "Tick")]
     Tick,
 
-    /// Can used by cli or gui to show that a file or directory is up to date and no transfer is needed.
+    /// Can be used by cli or gui to show that a file or directory is up to date and no transfer is needed.
     #[strum(to_string = "Up to date")]
     UpToDate,
 
-    /// Can used by cli or gui to show that a file or directory was successfully verified.   
+    /// Can be used by cli or gui to show that a file or directory was successfully verified.   
     #[strum(to_string = "Verified")]
     Verified,
 }

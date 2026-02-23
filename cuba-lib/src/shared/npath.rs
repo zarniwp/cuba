@@ -100,7 +100,7 @@ pub enum File {}
 /// A dir path must target to a directory.
 pub enum Dir {}
 
-/// A dir path must target to a symlink.
+/// A symlink path must target to a symlink.
 pub enum Symlink {}
 
 /// Defines a `NPathError`.

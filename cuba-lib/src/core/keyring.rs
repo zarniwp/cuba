@@ -59,7 +59,7 @@ fn is_valid_id(id: &str) -> bool {
     }
 }
 
-/// Helper to create a keyring entry
+/// Helper to create a keyring entry.
 fn keyring_entry(id: &str) -> Result<Entry, KeyringError> {
     Entry::new("cuba", id).map_err(|err| KeyringError::EntryCreation(err.to_string()))
 }

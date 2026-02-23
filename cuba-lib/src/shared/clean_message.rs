@@ -13,7 +13,7 @@ use super::npath::{Rel, UNPath};
 /// Defines a `CleanError`.
 #[derive(Error, Debug)]
 pub enum CleanError {
-    /// Can used by cli or gui to show that the removal of a file or directory was not successful.   
+    /// Can be used by cli or gui to show that the removal of a file or directory was not successful.   
     #[error("Remove failed")]
     RemoveFailed,
 }
@@ -21,11 +21,11 @@ pub enum CleanError {
 /// Defines a `CleanInfo`.
 #[derive(Display, Debug, PartialEq)]
 pub enum CleanInfo {
-    /// Can used by cli or gui to show that a file or directory is indexed and no orphan.   
+    /// Can be used by cli or gui to show that a file or directory is indexed and no orphan.   
     #[strum(to_string = "Ok")]
     Ok,
 
-    /// Can used by cli or gui to show that a file or directory was removed.   
+    /// Can be used by cli or gui to show that a file or directory was removed.   
     #[strum(to_string = "Removed")]
     Removed,
 }

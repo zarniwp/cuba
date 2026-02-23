@@ -57,6 +57,7 @@ impl IncludeMatcher {
         if self.globset.is_match(path.to_path()) {
             true
         } else {
+            // All parent directories of a pattern must also be matched.
             for pattern in &self.patterns {
                 if pattern.nfc().to_string().starts_with(path.to_nfc()) {
                     return true;

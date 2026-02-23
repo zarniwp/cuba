@@ -12,11 +12,11 @@ use super::message::{Info, Message};
 /// Defines a `ProgressInfo`.
 #[derive(Display, Debug, PartialEq)]
 pub enum ProgressInfo {
-    /// Can used by cli or gui to show the the progress continues n ticks.
+    /// Can be used by cli or gui to show the the progress continues n ticks.
     #[strum(to_string = "Ticks")]
     Ticks,
 
-    /// Can used by cli or gui to show that the progress total duration is n ticks.
+    /// Can be used by cli or gui to show that the progress total duration is n ticks.
     #[strum(to_string = "Duration")]
     Duration,
 }

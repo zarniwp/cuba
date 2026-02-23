@@ -49,7 +49,7 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
         )))
         .unwrap();
 
-    // Symlinks do not exist as backup files, so we have to threat them in a different way.
+    // Symlinks do not exist as backup files, so we have to treat them in a different way.
     for (src_rel_path, transferred_node) in transferred_nodes_read.iter() {
         // If symlink and clean flags do not match, keep the symlink.
         if transferred_node.src_symlink_meta.is_some()
