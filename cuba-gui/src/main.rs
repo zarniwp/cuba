@@ -24,6 +24,7 @@ use crate::{
     password_ids::PasswordIDs,
     restore_view::RestoreView,
 };
+use ::image::ImageReader;
 use crossbeam_channel::{Sender, unbounded};
 use cuba_lib::{
     core::cuba::Cuba,
@@ -60,12 +61,33 @@ fn setup_fonts(ctx: &egui::Context) {
     ctx.set_fonts(fonts);
 }
 
+/// Loads an icon from a file.
+fn load_icon(path: &str) -> Option<Arc<egui::IconData>> {
+    let image = ImageReader::open(path).ok()?.decode().ok()?.into_rgba8();
+    let (width, height) = image.dimensions();
+    Some(Arc::new(egui::IconData {
+        rgba: image.into_raw(),
+        width,
+        height,
+    }))
+}
 fn main() -> eframe::Result<()> {
-    // Set egui options.
+    // The icon.
+    let icon = load_icon("assets/icons/icon.png");
+
+    // Build viewport.
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_inner_size(egui::vec2(1200.0, 800.0))
+        .with_min_inner_size(egui::vec2(800.0, 600.0));
+
+    // Set the icon if it was loaded.
+    if let Some(icon) = icon {
+        viewport = viewport.with_icon(icon);
+    }
+
+    // Set options.
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size(egui::vec2(1200.0, 800.0))
-            .with_min_inner_size(egui::vec2(800.0, 600.0)),
+        viewport,
         ..Default::default()
     };
 
@@ -214,7 +236,12 @@ impl CubaGui {
         )));
 
         // The restore view.
-        let restore_view = Arc::new(RwLock::new(RestoreView::new(creation_ctx.egui_ctx.clone())));
+        let restore_view = Arc::new(RwLock::new(RestoreView::new(
+            creation_ctx.egui_ctx.clone(),
+            sender.clone(),
+            cuba.clone(),
+            arc_msg_dispatcher.clone(),
+        )));
 
         // The config view.
         let config_view = Arc::new(RwLock::new(ConfigView::new(
