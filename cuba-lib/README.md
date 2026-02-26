@@ -16,10 +16,10 @@ cargo add cuba-lib
 ```rust
 use std::{path::Path, sync::Arc};
 use crossbeam_channel::unbounded;
-use cuba_lib::{core::cuba::{Cuba, RunHandle}};
+use cuba_lib::core::cuba::{Cuba, RunHandle};
+use cuba_lib::shared::config_writer::ConfigWriter;
 use cuba_lib::shared::config::EXAMPLE_CONFIG;
 use cuba_lib::shared::config::load_config_from_str;
-use cuba_lib::shared::config::save_config_to_file;
 use cuba_lib::shared::config::load_config_from_file;
 use cuba_lib::shared::message::Message;
 use cuba_lib::shared::msg_receiver::MsgReceiver;
@@ -42,7 +42,7 @@ fn main() {
         let example_config = load_config_from_str(sender, EXAMPLE_CONFIG);
 
         if let Some(config) = example_config {
-            save_config_to_file(sender, "cuba.toml", &config);
+            ConfigWriter::write(sender, &Path::new("cuba.toml"), &config);
         }
     }
 

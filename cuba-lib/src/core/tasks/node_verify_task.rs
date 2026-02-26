@@ -237,7 +237,7 @@ pub fn node_verify_task(
                             );
                         }
                         UNPath::Symlink(ref _src_rel_sym_path) => {
-                            // Symlinks do not exist as backuped files or directories. 
+                            // Symlinks do not exist as backuped files or directories.
                             // So no verification is needed.
 
                             set_verified_ok(
