@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod about;
 mod backup_view;
 mod config_view;
@@ -24,7 +26,7 @@ use crate::{
     password_ids::PasswordIDs,
     restore_view::RestoreView,
 };
-use ::image::ImageReader;
+
 use crossbeam_channel::{Sender, unbounded};
 use cuba_lib::{
     core::cuba::Cuba,
@@ -61,29 +63,14 @@ fn setup_fonts(ctx: &egui::Context) {
     ctx.set_fonts(fonts);
 }
 
-/// Loads an icon from a file.
-fn load_icon(path: &str) -> Option<Arc<egui::IconData>> {
-    let image = ImageReader::open(path).ok()?.decode().ok()?.into_rgba8();
-    let (width, height) = image.dimensions();
-    Some(Arc::new(egui::IconData {
-        rgba: image.into_raw(),
-        width,
-        height,
-    }))
-}
 fn main() -> eframe::Result<()> {
-    // The icon.
-    let icon = load_icon("assets/icons/icon.png");
-
     // Build viewport.
-    let mut viewport = egui::ViewportBuilder::default()
+    let viewport = egui::ViewportBuilder::default()
         .with_inner_size(egui::vec2(1200.0, 800.0))
-        .with_min_inner_size(egui::vec2(800.0, 600.0));
-
-    // Set the icon if it was loaded.
-    if let Some(icon) = icon {
-        viewport = viewport.with_icon(icon);
-    }
+        .with_min_inner_size(egui::vec2(800.0, 600.0))
+        .with_icon(
+            eframe::icon_data::from_png_bytes(include_bytes!("../assets/icons/icon.png")).unwrap(),
+        );
 
     // Set options.
     let options = eframe::NativeOptions {
@@ -91,6 +78,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
+    // Run app.
     eframe::run_native(
         "Cuba GUI",
         options,
@@ -174,12 +162,29 @@ struct CubaGui {
     dock_state: DockState<ViewId>,
     post_init_done: bool,
     show_about: bool,
+    icon_texture: egui::TextureHandle,
 }
 
 /// Methods of `CubaGui`.
 impl CubaGui {
     /// Creates a new `CubaGui`.
     fn new(creation_ctx: &eframe::CreationContext<'_>) -> Self {
+        // Load icon.
+        let image = image::load_from_memory(include_bytes!("../assets/icons/icon.png"))
+            .expect("Failed to load image");
+
+        let size = [image.width() as usize, image.height() as usize];
+        let rgba = image.to_rgba8();
+        let pixels = rgba.as_flat_samples();
+
+        let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+
+        let icon_texture =
+            creation_ctx
+                .egui_ctx
+                .load_texture("icon", color_image, Default::default());
+
+        // Setup fonts.
         setup_fonts(&creation_ctx.egui_ctx);
 
         // Set fonts.
@@ -298,6 +303,7 @@ impl CubaGui {
             dock_state,
             post_init_done: false,
             show_about: false,
+            icon_texture,
         }
     }
 
@@ -437,7 +443,7 @@ impl eframe::App for CubaGui {
 
         // The about dialog.
         if self.show_about {
-            show_about(ctx, &mut self.show_about);
+            show_about(ctx, &mut self.show_about, &self.icon_texture);
         }
 
         DockArea::new(&mut self.dock_state)

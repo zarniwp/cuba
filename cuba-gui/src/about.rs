@@ -1,13 +1,22 @@
 /// Show the about dialog.
-pub fn show_about(ctx: &egui::Context, show_about: &mut bool) {
+pub fn show_about(ctx: &egui::Context, show_about: &mut bool, icon_texture: &egui::TextureHandle) {
     egui::Window::new("About")
         .collapsible(false)
         .resizable(false)
         .default_size([600.0, 200.0])
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx, |ui| {
-            ui.heading(env!("CARGO_PKG_NAME"));
-            ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Image::new(icon_texture)
+                        .max_width(50.0)
+                        .corner_radius(10),
+                );
+                ui.vertical(|ui| {
+                    ui.heading(env!("CARGO_PKG_NAME"));
+                    ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
+                });
+            });
             ui.separator();
             ui.label("Cuba is a lightweight and flexible backup tool for your local data. It allows you to back up files to WebDAV cloud or network drives while keeping them in their original form by default. Optional compression and encryption ensure your backups are efficient and secure, and because standard formats are used, your files can also be accessed or restored with public tools if needed.");
             ui.separator();

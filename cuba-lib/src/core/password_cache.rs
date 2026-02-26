@@ -36,7 +36,8 @@ impl PasswordCache {
     #[allow(unused)]
     pub fn clear(&mut self) {
         for secret_string in self.cache.values_mut() {
-            secret_string.zeroize(); // wipes memory
+            // Wipes memory.
+            secret_string.zeroize();
         }
 
         self.cache.clear();

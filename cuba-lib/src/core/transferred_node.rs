@@ -213,7 +213,7 @@ impl TransferredNode {
 
 /// Defines the `TransferredNodes`.
 ///
-/// A Map that holds all transferred nodes.
+/// A map that holds all transferred nodes.
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransferredNodes(

@@ -53,6 +53,7 @@ pub fn run_backup(
     // Create include matcher.
     if let Some(include_patterns) = include_patterns {
         include_matcher = match GlobMatcher::new(include_patterns) {
+            // Note: a include matcher does include all predecessor directories of a glob statement.
             Ok(matcher) => Some(matcher.include_matcher()),
             Err(err) => {
                 send_error!(sender, err);

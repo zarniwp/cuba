@@ -24,26 +24,26 @@ use super::fs_base::{FS, FSBlockSize, FSError, FSWrite};
 fn parse_rfc1123(input: &str) -> Result<DateTime<Utc>, chrono::ParseError> {
     const RFC1123: &str = "%a, %d %b %Y %H:%M:%S %z";
 
-    // Replace "UTC" and "GMT" with 0000
+    // Replace "UTC" and "GMT" with 0000.
     let normalized = input.trim().replace("UTC", "+0000").replace("GMT", "+0000");
 
-    // Parse using the RFC 1123 format string
+    // Parse using the RFC 1123 format string.
     DateTime::parse_from_str(&normalized, RFC1123).map(|dt| dt.with_timezone(&Utc))
 }
 
 /// Parse datetime.
 fn parse_webdav_datetime(string: &str) -> Option<SystemTime> {
-    // Try RFC 1123
+    // Try RFC 1123.
     if let Ok(dt) = parse_rfc1123(string) {
         return Some(SystemTime::from(dt.with_timezone(&Utc)));
     }
 
-    // Try RFC 3339
+    // Try RFC 3339.
     if let Ok(dt) = DateTime::parse_from_rfc3339(string) {
         return Some(SystemTime::from(dt));
     }
 
-    // Try RFC 2822
+    // Try RFC 2822.
     if let Ok(dt) = DateTime::parse_from_rfc2822(string) {
         return Some(SystemTime::from(dt.with_timezone(&Utc)));
     }

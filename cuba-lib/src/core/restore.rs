@@ -87,6 +87,7 @@ pub fn run_restore(
         let mut excluded = false;
 
         if let Some(ref matcher) = include_matcher {
+            // Note: a include matcher does include all predecessor directories of a glob statement.
             included = matcher.is_match(src_rel_path);
         }
 

@@ -5,6 +5,7 @@ use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 
 /// The user of the password ids.
+/// It contains a list of all ids.
 const USER_PASSWORD_IDS: &str = "password-ids";
 
 /// Defines a `KeyringError`.
@@ -94,7 +95,7 @@ fn update_password_ids(id: &str, operation: Operation) -> Result<(), KeyringErro
     Ok(())
 }
 
-/// Store a password in OS keyring
+/// Store a password in OS keyring.
 pub fn store_password(id: &str, password: &SecretString) -> Result<(), KeyringError> {
     if !is_valid_id(id) {
         return Err(KeyringError::PasswordIDInvalid);
@@ -127,7 +128,7 @@ pub fn remove_password(id: &str) -> Result<(), KeyringError> {
     Ok(())
 }
 
-/// Retrieve a password and wrap in SecretString
+/// Retrieve a password and wrap in SecretString.
 pub fn get_password(id: &str) -> Result<SecretString, KeyringError> {
     let password = keyring_entry(id)?
         .get_password()

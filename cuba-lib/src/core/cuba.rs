@@ -282,6 +282,10 @@ impl Cuba {
     }
 
     /// Runs the verify with the given backup profile name.
+    ///
+    /// Verify means to check the integrity of the backup. In detail:
+    /// - Throws an error if a file/directories is in the index but not in the backup
+    /// - Throws an error if a hash of a file and its index hash is not the same
     pub fn run_verify(&self, run_handle: RunHandle, backup_name: &str, verify_all: &bool) {
         if let Some(config) = self.requires_config() {
             match config.backup.get(backup_name) {
@@ -316,6 +320,11 @@ impl Cuba {
     }
 
     /// Runs the clean with the given backup profile name.
+    ///
+    /// Clean means to synchronize the backup with the source. In detail:
+    /// - Files/directories that are not in the backup index are deleted from the backup
+    /// - Files/directories/symlinks that are marked as ophans (not in the source anymore) are
+    ///   deleted from the backup
     pub fn run_clean(&self, run_handle: RunHandle, backup_name: &str) {
         if let Some(config) = self.requires_config() {
             match config.backup.get(backup_name) {

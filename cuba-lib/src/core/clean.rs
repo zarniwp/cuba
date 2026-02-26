@@ -17,6 +17,11 @@ use super::fs::fs_base::FSMount;
 use super::transferred_node::{Flags, MaskedFlags, Restore, TransferredNodes};
 
 /// Runs the clean process.
+/// 
+/// Clean means to synchronize the backup with the source, this means in detail:
+/// - Files/directories that are not in the backup index are deleted from the backup
+/// - Files/directories/symlinks that are marked as ophans (not in the source anymore) are 
+///   deleted from the backup
 pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<dyn Message>>) {
     // Set running to true.
     run_state.start();
@@ -94,6 +99,7 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
                                 .get_node_for_src(&node_rel_path)
                             {
                                 if clean_flags.matches(transferred_node.flags) {
+                                    // If flags match (ophan flag) remove the node.
                                     return remove_node(
                                         &abs_path,
                                         &node_rel_path,
@@ -121,6 +127,7 @@ pub fn run_clean(run_state: Arc<RunState>, fs_mnt: FSMount, sender: Sender<Arc<d
                                     return true;
                                 }
                             } else {
+                                // If node not in backup index, remove node.
                                 return remove_node(
                                     &abs_path,
                                     &node_rel_path,
