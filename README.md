@@ -1,4 +1,7 @@
-# Cuba ‒ a lightweight backup tool
+<div style="display: flex; align-items: center;">
+  <img src="cuba-gui/assets/icons/icon.png" width="64" style="margin-right: 15px;">
+  <h1 style="margin: 0;">Cuba - a lightweight backup tool</h1>
+</div>
 
 [![Build](https://github.com/zarniwp/cuba/actions/workflows/build.yml/badge.svg)](https://github.com/zarniwp/cuba/actions/workflows/build.yml)
 [![License: MIT or Apache 2.0](https://img.shields.io/badge/License-MIT_or_Apache_2.0-blue)](https://opensource.org/licenses/MIT)
